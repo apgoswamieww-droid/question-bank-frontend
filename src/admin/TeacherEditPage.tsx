@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, BookOpenCheck, CheckCircle2, Mail, Pencil, UserRound } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Mail, Pencil, UserRound } from "lucide-react";
 import { api, ApiError, type AdminUser } from "../api/client";
 import { useAdminAuth } from "../context/useAdminAuth";
 import { TeacherForm } from "./components/TeacherForm";
@@ -123,15 +123,7 @@ export default function TeacherEditPage() {
         >
           <ArrowLeft className="h-4 w-4" aria-hidden /> Back to Teachers
         </button>
-        {user?.role === "super_admin" && (
-          <Button
-            variant="secondary"
-            onClick={() => navigate(`/admin/teachers/${teacher?.id}/editor`)}
-          >
-            <BookOpenCheck className="h-4 w-4" aria-hidden /> Open editor
-          </Button>
-        )}
-      </div>
+              </div>
 
       {(created || emailStatus) && (
         <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4">

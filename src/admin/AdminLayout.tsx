@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
-  BookOpenCheck,
+
   BarChart3,
   Building2,
   ChevronDown,
@@ -26,6 +26,7 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
+import { Toaster } from "sonner";
 import { useAdminAuth, useCan, PERMISSIONS } from "../context/useAdminAuth";
 import { ROLE_META } from "./components/roleMeta";
 
@@ -56,14 +57,13 @@ const navSections: NavSection[] = [
     items: [
       { label: "Teachers", icon: UserRound, to: "/admin/teachers", perm: PERMISSIONS.USERS_VIEW },
       { label: "Students", icon: GraduationCap, to: "/admin/students", perm: PERMISSIONS.USERS_VIEW },
-      { label: "Parents", icon: Users, to: "/admin/parents", perm: PERMISSIONS.USERS_VIEW },
+
       { label: "Schools", icon: Building2, to: "/admin/schools", perm: PERMISSIONS.USERS_MANAGE },
     ],
   },
   {
     title: "Content",
     items: [
-      { label: "Editor", icon: BookOpenCheck, to: "/admin/editor", perm: PERMISSIONS.QUESTION_BANKS_MANAGE },
       { label: "Question Entry", icon: PenLine, to: "/admin/question-entry", perm: PERMISSIONS.QUESTION_BANKS_MANAGE },
       { label: "Tests", icon: ClipboardList, to: "/admin/tests", perm: PERMISSIONS.QUESTION_BANKS_MANAGE },
       { label: "Question Banks", icon: Library, to: "/admin/question-banks", perm: PERMISSIONS.QUESTION_BANKS_VIEW },
@@ -321,6 +321,7 @@ export function AdminLayout() {
           <Outlet />
         </main>
       </div>
+      <Toaster position="bottom-right" richColors closeButton />
     </div>
   );
 }

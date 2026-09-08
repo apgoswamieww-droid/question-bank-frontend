@@ -12,7 +12,6 @@ const ROLES = [
   { code: "super_admin", name: "Super Admin", description: "Full access to all modules and settings" },
   { code: "teacher", name: "Teacher", description: "Manage question banks and their own content" },
   { code: "student", name: "Student", description: "View assigned question banks and take tests" },
-  { code: "parent", name: "Parent", description: "View reports for linked students" },
 ];
 
 const PERMISSIONS = [
@@ -31,7 +30,6 @@ const ROLE_PERMISSIONS = {
   ],
   teacher: ["question_banks.view", "question_banks.manage"],
   student: ["question_banks.view"],
-  parent: ["question_banks.view"],
 };
 
 function loadUsers() {
@@ -144,7 +142,7 @@ export const fileRepo = {
   },
 
   countUsersByRole() {
-    const counts = { teacher: 0, student: 0, parent: 0, super_admin: 0 };
+    const counts = { teacher: 0, student: 0, super_admin: 0 };
     for (const u of loadUsers()) counts[u.role] = (counts[u.role] ?? 0) + 1;
     return counts;
   },

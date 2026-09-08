@@ -24,7 +24,6 @@ const ROLE_DEFAULTS = {
   ],
   teacher: ["question_banks.view", "question_banks.manage"],
   student: ["question_banks.view"],
-  parent: ["question_banks.view"],
 };
 
 const PERMISSION_ROWS = [
@@ -49,7 +48,6 @@ async function seedSupabase() {
     ["super_admin", "Super Admin", "Full access to all modules and settings"],
     ["teacher", "Teacher", "Manage question banks and their own content"],
     ["student", "Student", "View assigned question banks and take tests"],
-    ["parent", "Parent", "View reports for linked students"],
   ]) {
     const { error } = await client.from("roles").upsert({ code, name, description });
     if (error) throw new Error(`seed roles: ${error.message}`);

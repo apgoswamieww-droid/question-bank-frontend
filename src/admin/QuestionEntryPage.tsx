@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { ArrowLeft, BookOpen, BookOpenCheck, ChevronDown, History, ListFilter, Loader2, Plus, Save, SaveAll, Trash2, X } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { ArrowLeft, BookOpen, BookOpenCheck, ChevronDown, Eye, History, ListFilter, Loader2, Plus, Save, SaveAll, Trash2, X } from "lucide-react";
 import {
   api,
   ApiError,
@@ -10,13 +10,15 @@ import {
   type Topic,
   type ExamType,
   type Language,
-  type QuestionLevel,
   type Question,
   type QuestionOption,
 } from "../api/client";
 import { Button } from "./components/Button";
 import { RichEditor } from "./components/RichEditor";
 import { QuestionHistoryPanel } from "./components/QuestionHistoryPanel";
+import { QuestionViewModal } from "./components/QuestionViewModal";
+import { StoredRichText } from "./components/StoredRichText";
+import { storedHtml } from "./components/storedRichHelper";
 
 type QType =
   | "mcq_single"
@@ -94,6 +96,8 @@ const emptyDraft = (): Draft => ({
 
 export default function QuestionEntryPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get("id");
 
   // Master data
   const [standards, setStandards] = useState<Standard[]>([]);
@@ -102,7 +106,6 @@ export default function QuestionEntryPage() {
   const [topics, setTopics] = useState<Topic[]>([]);
   const [examTypes, setExamTypes] = useState<ExamType[]>([]);
   const [languages, setLanguages] = useState<Language[]>([]);
-  const [levels, setLevels] = useState<QuestionLevel[]>([]);
   const [loadingMaster, setLoadingMaster] = useState(true);
   const [masterError, setMasterError] = useState<string | null>(null);
 
@@ -122,6 +125,7 @@ export default function QuestionEntryPage() {
   const [saving, setSaving] = useState<"draft" | "published" | null>(null);
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [viewQuestionId, setViewQuestionId] = useState<string | null>(null);
 
   // Wizard tabs
   const [activeTab, setActiveTab] = useState<"question" | "metadata" | "review">("question");
@@ -134,14 +138,12 @@ export default function QuestionEntryPage() {
       api.subjects.list(),
       api.examTypes.list(),
       api.languages.list(),
-      api.questionLevels.list(),
     ])
-      .then(([s, sub, et, lang, lv]) => {
+      .then(([s, sub, et, lang]) => {
         setStandards(s.standards);
         setSubjects(sub.subjects);
         setExamTypes(et.examTypes);
         setLanguages(lang.languages);
-        setLevels(lv.levels);
       })
       .catch((err) => setMasterError(err instanceof ApiError ? err.message : "Failed to load master data."))
       .finally(() => setLoadingMaster(false));
@@ -240,6 +242,25 @@ export default function QuestionEntryPage() {
     setSelectedIdx(-1);
     setSaveNotice(null);
   };
+
+  // ---- Load question for editing when navigated with ?id= ----
+  useEffect(() => {
+    if (!editId) return;
+    api.questions
+      .get(editId)
+      .then((res) => {
+        const q = res.question;
+        setStandardId(q.standard_id ?? "");
+        setSubjectId(q.subject_id ?? "");
+        setChapterId(q.chapter_id ?? "");
+        setTopicId(q.topic_id ?? "");
+        selectQuestion(q);
+        setDraft((d) => ({ ...d, payload: (res.payload as Record<string, unknown>) ?? {} }));
+      })
+      .catch((err) =>
+        setMasterError(err instanceof ApiError ? err.message : "Failed to load question for editing.")
+      );
+  }, [editId]);
 
   const nextQuestion = () => {
     if (selectedIdx < questions.length - 1) selectQuestion(questions[selectedIdx + 1]);
@@ -416,6 +437,7 @@ export default function QuestionEntryPage() {
               setSelectedIdx(idx);
               selectQuestion(questions[idx]);
             }}
+            onView={(q) => setViewQuestionId(q.id)}
             onDelete={async (q) => {
               await api.questions.delete(q.id);
               setQuestions((prev) => prev.filter((x) => x.id !== q.id));
@@ -590,7 +612,6 @@ export default function QuestionEntryPage() {
                 setDraftField={setDraftField}
                 examTypes={examTypes}
                 languages={languages}
-                levels={levels}
                 standardName={standards.find((s) => s.id === standardId)?.name ?? "—"}
                 subjectName={subjects.find((s) => s.id === subjectId)?.name ?? "—"}
                 chapterName={chapters.find((c) => c.id === chapterId)?.name ?? "—"}
@@ -603,7 +624,12 @@ export default function QuestionEntryPage() {
                 <Panel title="Review — Question preview">
                   <div className="space-y-4">
                     <ReviewRow label="Type" value={TYPES.find((t) => t.value === draft.type)?.label ?? draft.type} />
-                    <ReviewRow label="Question" value={stringifyContent(draft.content)} />
+                    <div>
+                      <p className="text-xs font-medium text-slate-500">Question</p>
+                      <div className="mt-0.5 text-sm text-slate-800 [&_.katex]:whitespace-nowrap">
+                        {storedHtml(draft.content) ? <StoredRichText value={draft.content} /> : "—"}
+                      </div>
+                    </div>
 
                     {draft.type === "mcq_single" || draft.type === "mcq_multi" ? (
                       <div className="space-y-1.5">
@@ -613,7 +639,9 @@ export default function QuestionEntryPage() {
                             <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded text-[10px] font-bold ${o.is_correct ? "bg-emerald-500 text-white" : "bg-slate-200 text-slate-500"}`}>
                               {String.fromCharCode(65 + i)}
                             </span>
-                            <span className="text-sm text-slate-700">{stringifyContent({ html: o.content }) || "——"}</span>
+                            <span className="min-w-0 flex-1 text-sm text-slate-700 [&_.katex]:whitespace-nowrap">
+                              {storedHtml({ html: o.content }) ? <StoredRichText value={{ html: o.content }} /> : "——"}
+                            </span>
                             {o.is_correct && <span className="ml-auto text-xs font-semibold text-emerald-600">Correct</span>}
                           </div>
                         ))}
@@ -629,10 +657,14 @@ export default function QuestionEntryPage() {
                       />
                     )}
 
-                    <ReviewRow label="Explanation" value={stringifyContent(draft.explanation) || "—"} />
+                    <div>
+                      <p className="text-xs font-medium text-slate-500">Explanation</p>
+                      <div className="mt-0.5 text-sm text-slate-800 [&_.katex]:whitespace-nowrap">
+                        {storedHtml(draft.explanation) ? <StoredRichText value={draft.explanation} /> : "—"}
+                      </div>
+                    </div>
                     <ReviewRow label="Exam type" value={examTypes.find((e) => e.id === draft.exam_type_id)?.name ?? "—"} />
                     <ReviewRow label="Language" value={languages.find((l) => l.id === draft.language_id)?.name ?? "—"} />
-                    <ReviewRow label="Level" value={levels.find((l) => l.id === draft.level_id)?.name ?? "—"} />
                     <div className="grid grid-cols-3 gap-2">
                       <ReviewRow label="Difficulty" value={draft.difficulty} />
                       <ReviewRow label="Marks" value={String(draft.marks)} />
@@ -684,11 +716,14 @@ export default function QuestionEntryPage() {
           setSelectedIdx(idx);
           selectQuestion(questions[idx]);
         }}
+        onView={(q) => setViewQuestionId(q.id)}
         onDelete={async (q) => {
           await api.questions.delete(q.id);
           setQuestions((prev) => prev.filter((x) => x.id !== q.id));
         }}
       />
+
+      <QuestionViewModal questionId={viewQuestionId} open={Boolean(viewQuestionId)} onClose={() => setViewQuestionId(null)} />
 
       <QuestionHistoryPanel
         questionId={draft.id}
@@ -777,7 +812,6 @@ function MetadataPanel({
   setDraftField,
   examTypes,
   languages,
-  levels,
   standardName,
   subjectName,
   chapterName,
@@ -787,7 +821,6 @@ function MetadataPanel({
   setDraftField: (f: keyof Draft, v: unknown) => void;
   examTypes: ExamType[];
   languages: Language[];
-  levels: QuestionLevel[];
   standardName: string;
   subjectName: string;
   chapterName: string;
@@ -803,70 +836,58 @@ function MetadataPanel({
     <aside className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <h2 className="text-sm font-bold text-slate-800">Metadata</h2>
       <div className="space-y-3 text-sm">
-        <ReadonlyRow label="Standard" value={standardName} />
-        <ReadonlyRow label="Subject" value={subjectName} />
-        <ReadonlyRow label="Chapter" value={chapterName} />
-        <ReadonlyRow label="Topic" value={topicName} />
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          <ReadonlyRow label="Standard" value={standardName} />
+          <ReadonlyRow label="Subject" value={subjectName} />
+          <ReadonlyRow label="Chapter" value={chapterName} />
+          <ReadonlyRow label="Topic" value={topicName} />
+        </div>
 
-        <Field label="Exam Type">
-          <select value={draft.exam_type_id} onChange={(e) => setDraftField("exam_type_id", e.target.value)} className={selectCls}>
-            <option value="">—</option>
-            {examTypes.map((et) => (
-              <option key={et.id} value={et.id}>
-                {et.name}
-              </option>
-            ))}
-          </select>
-        </Field>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <Field label="Exam Type">
+            <select value={draft.exam_type_id} onChange={(e) => setDraftField("exam_type_id", e.target.value)} className={selectCls}>
+              <option value="">—</option>
+              {examTypes.map((et) => (
+                <option key={et.id} value={et.id}>
+                  {et.name}
+                </option>
+              ))}
+            </select>
+          </Field>
 
-        <Field label="Language">
-          <select value={draft.language_id} onChange={(e) => setDraftField("language_id", e.target.value)} className={selectCls}>
-            <option value="">—</option>
-            {languages.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.name}
-              </option>
-            ))}
-          </select>
-        </Field>
+          <Field label="Language">
+            <select value={draft.language_id} onChange={(e) => setDraftField("language_id", e.target.value)} className={selectCls}>
+              <option value="">—</option>
+              {languages.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+          </Field>
 
-        <Field label="Level / Difficulty">
-          <select value={draft.level_id} onChange={(e) => setDraftField("level_id", e.target.value)} className={selectCls}>
-            <option value="">—</option>
-            {levels.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.name}
-              </option>
-            ))}
-          </select>
-        </Field>
+          <Field label="Difficulty">
+            <select value={draft.difficulty} onChange={(e) => setDraftField("difficulty", e.target.value)} className={selectCls}>
+              {DIFFICULTIES.map((d) => (
+                <option key={d} value={d}>
+                  {d[0].toUpperCase() + d.slice(1)}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
 
-        <Field label="Difficulty">
-          <select value={draft.difficulty} onChange={(e) => setDraftField("difficulty", e.target.value)} className={selectCls}>
-            {DIFFICULTIES.map((d) => (
-              <option key={d} value={d}>
-                {d[0].toUpperCase() + d.slice(1)}
-              </option>
-            ))}
-          </select>
-        </Field>
-
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           <Field label="Marks">
             <input type="number" min={0} value={draft.marks} onChange={(e) => setDraftField("marks", Number(e.target.value))} className={inputCls} />
           </Field>
           <Field label="Negative">
             <input type="number" min={0} value={draft.negative_marks} onChange={(e) => setDraftField("negative_marks", Number(e.target.value))} className={inputCls} />
           </Field>
+          <Field label="Exam year">
+            <input type="number" value={draft.exam_year} onChange={(e) => setDraftField("exam_year", e.target.value)} className={inputCls} placeholder="e.g. 2026" />
+          </Field>
         </div>
-
-        <Field label="Time limit (sec)">
-          <input type="number" min={0} value={draft.time_limit_sec} onChange={(e) => setDraftField("time_limit_sec", e.target.value)} className={inputCls} placeholder="optional" />
-        </Field>
-
-        <Field label="Exam year">
-          <input type="number" value={draft.exam_year} onChange={(e) => setDraftField("exam_year", e.target.value)} className={inputCls} placeholder="e.g. 2026" />
-        </Field>
 
         <Field label="Tags">
           <div className="flex gap-1.5">
@@ -1067,12 +1088,14 @@ function BottomStrip({
   questions,
   selectedIdx,
   onSelect,
+  onView,
   onDelete,
 }: {
   loading: boolean;
   questions: Question[];
   selectedIdx: number;
   onSelect: (idx: number) => void;
+  onView: (q: Question) => void;
   onDelete: (q: Question) => void;
 }) {
   const [open, setOpen] = useState(true);
@@ -1098,31 +1121,48 @@ function BottomStrip({
           {!loading && questions.length === 0 && (
             <p className="p-4 text-sm text-slate-400">No questions in the current selection yet.</p>
           )}
-          {questions.map((q, i) => (
-            <div
-              key={q.id}
-              className={`group flex items-center gap-3 border-b border-slate-50 px-4 py-2.5 text-sm transition ${
-                selectedIdx === i ? "bg-primary-50" : "hover:bg-slate-50"
-              }`}
-            >
-              <button type="button" onClick={() => onSelect(i)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
-                <span className="w-6 text-xs font-bold text-slate-400">#{i + 1}</span>
-                <span className="max-w-[300px] truncate text-slate-700">{stringifyContent(q.content)}</span>
-                <span className="ml-auto shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
-                  {q.type.replace("_", " ")}
-                </span>
-                <span className="shrink-0 text-xs font-semibold text-slate-500">{q.marks} mark{q.marks !== 1 ? "s" : ""}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => onDelete(q)}
-                className="shrink-0 text-slate-300 opacity-0 transition hover:text-red-600 group-hover:opacity-100"
-                aria-label="Delete question"
+          {questions.map((q, i) => {
+            const fullText = stringifyContent(q.content);
+            return (
+              <div
+                key={q.id}
+                className={`group flex items-center gap-3 border-b border-slate-50 px-4 py-2.5 text-sm transition ${
+                  selectedIdx === i ? "bg-primary-50" : "hover:bg-slate-50"
+                }`}
               >
-                <Trash2 className="h-4 w-4" aria-hidden />
-              </button>
-            </div>
-          ))}
+                <button type="button" onClick={() => onSelect(i)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+                  <span className="w-6 text-xs font-bold text-slate-400">#{i + 1}</span>
+                  <span
+                    className="max-w-[340px] truncate text-slate-700 [&_.katex]:text-[12px] [&_.katex]:whitespace-nowrap"
+                    title={fullText}
+                  >
+                    {storedHtml(q.content) ? <StoredRichText value={q.content} /> : fullText}
+                  </span>
+                  <span className="ml-auto shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
+                    {q.type.replace("_", " ")}
+                  </span>
+                  <span className="shrink-0 text-xs font-semibold text-slate-500">{q.marks} mark{q.marks !== 1 ? "s" : ""}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onView(q)}
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-slate-300 text-slate-500 transition hover:border-primary hover:text-primary"
+                  aria-label="View question"
+                  title="View question"
+                >
+                  <Eye className="h-3.5 w-3.5" aria-hidden />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onDelete(q)}
+                  className="shrink-0 text-slate-300 opacity-0 transition hover:text-red-600 group-hover:opacity-100"
+                  aria-label="Delete question"
+                >
+                  <Trash2 className="h-4 w-4" aria-hidden />
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
     </section>

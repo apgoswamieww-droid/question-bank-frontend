@@ -28,6 +28,8 @@ import { useMathModal } from "../../hooks/useMathModal";
 import { useFontMarks } from "../../hooks/useFontMarks";
 import { MathEditorModal } from "../../MathEditorModal";
 import { readMathFromClipboard, hasMathMLOnClipboard } from "../../utils/mathPaste";
+import { convertClipboardData, isKrutiDev } from "../../utils/krutidevConverter";
+import { KrutiDevButton } from "./KrutiDevButton";
 
 const fontSizes = [12, 14, 16, 18, 20, 24, 28, 32, 36];
 
@@ -96,6 +98,16 @@ export function RichEditor({ value, onChange, placeholder, minHeight = "9rem", d
     editorProps: {
       attributes: { class: "prose max-w-none focus:outline-none" },
       handlePaste: (_view, event) => {
+        // 1. Try KrutiDev conversion first
+        const converted = event.clipboardData ? convertClipboardData(event.clipboardData) : null;
+        if (converted) {
+          event.preventDefault();
+          setPasteError(null);
+          editor.chain().focus().insertContent(converted).run();
+          return true;
+        }
+
+        // 2. Math conversion
         const math = event.clipboardData ? readMathFromClipboard(event.clipboardData) : [];
         if (math.length > 0) {
           event.preventDefault();
@@ -111,6 +123,8 @@ export function RichEditor({ value, onChange, placeholder, minHeight = "9rem", d
           chain.run();
           return true;
         }
+
+        // 3. MathML error
         if (event.clipboardData && hasMathMLOnClipboard(event.clipboardData)) {
           event.preventDefault();
           setPasteError(
@@ -230,6 +244,8 @@ export function RichEditor({ value, onChange, placeholder, minHeight = "9rem", d
             >
               <ImageIcon className="h-4 w-4" />
             </button>
+            <Divider />
+            <KrutiDevButton editor={editor} />
           </>
         )}
         {toolbarBtn(false, "Insert equation", () => openNewMathModal(), <Sigma className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} />, compact)}

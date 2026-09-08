@@ -2,7 +2,7 @@ const TOKEN_KEY = "qb.admin.token";
 const USER_KEY = "qb.admin.user";
 const PERMS_KEY = "qb.admin.permissions";
 
-export type UserRole = "super_admin" | "teacher" | "student" | "parent" | (string & {});
+export type UserRole = "super_admin" | "teacher" | "student" | (string & {});
 
 export interface AdminUser {
   id: string;
@@ -311,6 +311,7 @@ export interface Question {
   sort_order: number;
   created_at: string;
   updated_at: string;
+  usage_count?: number;
 }
 
 export interface QuestionOption {
@@ -337,9 +338,42 @@ export interface QuestionFilters {
   status?: string;
   tags?: string[];
   created_by?: string;
+  search?: string;
+  q?: string;
+  min_marks?: number;
+  max_marks?: number;
+  min_negative_marks?: number;
+  max_negative_marks?: number;
+  created_from?: string;
+  created_to?: string;
+  updated_from?: string;
+  updated_to?: string;
+  with_usage?: boolean;
   limit?: number;
   offset?: number;
 }
+
+export interface QuestionListResponse {
+  questions: Question[];
+  total: number;
+  limit: number;
+  offset: number;
+  with_usage?: boolean;
+}
+
+export interface QuestionAggregateIdCount {
+  id: string;
+  count: number;
+}
+
+export interface QuestionAggregateCounts {
+  by_standard: QuestionAggregateIdCount[];
+  by_subject: QuestionAggregateIdCount[];
+  by_chapter: QuestionAggregateIdCount[];
+  by_topic: QuestionAggregateIdCount[];
+}
+
+export type QuestionAggregateDim = "standard" | "subject" | "chapter" | "topic";
 
 export interface AnalyticsOverview {
   total: number;
@@ -608,18 +642,31 @@ export const api = {
   },
 
   questions: {
-    list(filters?: QuestionFilters): Promise<{ questions: Question[]; total: number; limit: number; offset: number }> {
+    list(filters?: QuestionFilters): Promise<QuestionListResponse> {
       const qs = new URLSearchParams();
       if (filters) {
         for (const [k, v] of Object.entries(filters)) {
-          if (v !== undefined && v !== null && v !== "") {
-            if (k === "tags" && Array.isArray(v)) qs.set(k, v.join(","));
-            else qs.set(k, String(v));
-          }
+          if (v === undefined || v === null || v === "") continue;
+          if (k === "tags" && Array.isArray(v)) qs.set(k, v.join(","));
+          else qs.set(k, String(v));
         }
       }
       const q = qs.toString();
       return request(`/admin/questions${q ? `?${q}` : ""}`);
+    },
+    aggregate(filters?: QuestionFilters, include?: QuestionAggregateDim[]): Promise<QuestionAggregateCounts> {
+      const qs = new URLSearchParams();
+      if (filters) {
+        for (const [k, v] of Object.entries(filters)) {
+          if (v === undefined || v === null || v === "") continue;
+          if (k === "tags" && Array.isArray(v)) qs.set(k, v.join(","));
+          else if (k === "limit" || k === "offset" || k === "with_usage") continue;
+          else qs.set(k, String(v));
+        }
+      }
+      if (include && include.length > 0) qs.set("include", include.join(","));
+      const q = qs.toString();
+      return request(`/admin/questions/aggregate${q ? `?${q}` : ""}`);
     },
     get(id: string): Promise<{ question: Question; options: QuestionOption[]; payload: unknown }> {
       return request(`/admin/questions/${id}`);
@@ -707,7 +754,7 @@ export const api = {
     setUserRole(id: string, role: UserRole): Promise<{ user: AdminUser }> {
       return request(`/admin/users/${id}/role`, { method: "PUT", body: { role } });
     },
-    stats(): Promise<{ stats: Record<"teacher" | "student" | "parent" | "super_admin", number> }> {
+    stats(): Promise<{ stats: Record<"teacher" | "student" | "super_admin", number> }> {
       return request("/admin/stats");
     },
     listRoles(): Promise<{ roles: Role[] }> {

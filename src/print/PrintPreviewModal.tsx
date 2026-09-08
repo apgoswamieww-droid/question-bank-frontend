@@ -222,7 +222,7 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
               background: #ffffff;
             }
 
-            .print-paper-container { background: #fff; font-family: "Times New Roman", Times, serif; font-size: 14pt; }
+            .print-paper-container { background: #fff; font-family: "Rasa", "Noto Serif Gujarati", "Times New Roman", Times, serif; font-size: 14pt; }
             .print-paper-page { width: 210mm; min-height: 297mm; padding: ${settings.marginTop}mm ${settings.marginRight}mm ${settings.marginBottom}mm ${settings.marginLeft}mm; box-sizing: border-box; margin: 0 auto; page-break-after: always; position: relative; }
             .print-paper-page.last-page { page-break-after: auto; }
             .print-exam-header { border-bottom: 2px solid #1e293b; padding-bottom: 12px; margin-bottom: 16px; text-align: center; }

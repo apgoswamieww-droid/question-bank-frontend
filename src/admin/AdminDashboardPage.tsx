@@ -9,7 +9,6 @@ import { DashboardSkeleton } from "./components/Skeleton";
 interface Stats {
   teacher: number;
   student: number;
-  parent: number;
   super_admin: number;
 }
 
@@ -49,13 +48,6 @@ export default function AdminDashboardPage() {
       visible: can(PERMISSIONS.USERS_VIEW),
     },
     {
-      label: "Parents",
-      value: stats?.parent ?? 0,
-      icon: Users,
-      accent: "text-amber-600 bg-amber-100 ring-amber-200",
-      visible: can(PERMISSIONS.USERS_VIEW),
-    },
-    {
       label: "Question Banks",
       value: "—",
       icon: BookOpenCheck,
@@ -76,7 +68,7 @@ export default function AdminDashboardPage() {
           Welcome back, {user?.name?.split(" ")[0] ?? "Admin"}
         </h2>
         <p className="mt-1.5 max-w-xl text-sm text-slate-600">
-          Manage teachers, students, parents and question banks from one place.
+          Manage teachers, students and question banks from one place.
         </p>
         <span className={`mt-4 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ring-1 ${ROLE_META[user?.role ?? "super_admin"].color}`}>
           <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden />

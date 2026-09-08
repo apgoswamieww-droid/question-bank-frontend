@@ -48,7 +48,7 @@ export default function AdminRoutes() {
             <Route path="dashboard" element={<AdminDashboardPage />} />
             <Route path="teachers" element={<UsersPage role="teacher" />} />
             <Route path="students" element={<UsersPage role="student" />} />
-            <Route path="parents" element={<UsersPage role="parent" />} />
+
             <Route path="question-banks" element={<QuestionBanksPage />} />
             <Route
               path="question-entry"

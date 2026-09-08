@@ -3,10 +3,10 @@
 @import "katex/dist/katex.min.css";
 
 @theme {
-  --font-sans: "Google Sans", "Inter", ui-sans-serif, system-ui, -apple-system,
-    "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans",
-    Liberation Sans, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
-    "Noto Color Emoji";
+  --font-sans: "Rasa", "Noto Serif Gujarati", "Google Sans", "Inter",
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "Noto Sans", Liberation Sans, sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji";
 
   --color-primary: #f06d02;
   --color-primary-50: #fff7ed;
@@ -51,7 +51,7 @@
 body {
   margin: 0;
   background: #f5f6f8;
-  font-family: "Times New Roman", Times, serif;
+  font-family: "Rasa", "Noto Serif Gujarati", "Times New Roman", Times, serif;
 }
 
 .app-header {
@@ -193,7 +193,7 @@ body {
   outline: none;
   font-size: 16px;
   line-height: 1.7;
-  font-family: "Times New Roman", Times, serif;
+  font-family: "Rasa", "Noto Serif Gujarati", "Times New Roman", Times, serif;
   counter-reset: questionCounter;
 }
 

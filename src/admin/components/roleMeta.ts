@@ -1,6 +1,6 @@
 import type { UserRole } from "../../api/client";
 
-export const SYSTEM_ROLES: string[] = ["super_admin", "teacher", "student", "parent"];
+export const SYSTEM_ROLES: string[] = ["super_admin", "teacher", "student"];
 
 export const ROLE_META: Record<string, { label: string; color: string; chip: string }> = {
   super_admin: {
@@ -18,14 +18,10 @@ export const ROLE_META: Record<string, { label: string; color: string; chip: str
     color: "bg-emerald-500/10 text-emerald-700 ring-emerald-500/30",
     chip: "bg-emerald-600 text-white",
   },
-  parent: {
-    label: "Parent",
-    color: "bg-amber-500/10 text-amber-700 ring-amber-500/30",
-    chip: "bg-amber-600 text-white",
-  },
+
 };
 
-export const ROLE_ORDER: UserRole[] = ["super_admin", "teacher", "student", "parent"];
+export const ROLE_ORDER: UserRole[] = ["super_admin", "teacher", "student"];
 
 const CUSTOM_COLOR_PALETTES = [
   { color: "bg-purple-500/10 text-purple-700 ring-purple-500/30", chip: "bg-purple-600 text-white" },

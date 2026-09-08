@@ -60,6 +60,7 @@ import {
   getQuestionById,
   listQuestions,
   countQuestions,
+  questionAggregateCounts,
   updateQuestion,
   deleteQuestion,
   duplicateQuestion,
@@ -99,7 +100,7 @@ import {
   deleteSchool,
 } from "./supabase.js";
 
-const VALID_ROLES = new Set(["super_admin", "teacher", "student", "parent"]);
+const VALID_ROLES = new Set(["super_admin", "teacher", "student"]);
 const VALID_PERMISSIONS = new Set(Object.values(PERMISSIONS));
 
 const app = express();
@@ -599,7 +600,7 @@ app.delete(
   async (req, res, next) => {
     try {
       const { code } = req.params;
-      const SYSTEM_ROLES = new Set(["super_admin", "teacher", "student", "parent"]);
+      const SYSTEM_ROLES = new Set(["super_admin", "teacher", "student"]);
       if (SYSTEM_ROLES.has(code)) {
         return res.status(400).json({ error: "Cannot delete built-in system role.", code: "SYSTEM_ROLE" });
       }
@@ -1010,7 +1011,13 @@ app.post("/api/admin/questions", requireAuth, requirePermission(PERMISSIONS.QUES
 
 app.get("/api/admin/questions", requireAuth, requirePermission(PERMISSIONS.QUESTION_BANKS_VIEW), async (req, res, next) => {
   try {
-    const { bank_id, standard_id, subject_id, chapter_id, topic_id, type, difficulty, level_id, exam_type_id, language_id, exam_year, status, tags, created_by, limit, offset } = req.query ?? {};
+    const {
+      bank_id, standard_id, subject_id, chapter_id, topic_id, type, difficulty,
+      level_id, exam_type_id, language_id, exam_year, status, tags, created_by,
+      search, q, min_marks, max_marks, min_negative_marks, max_negative_marks,
+      created_from, created_to, updated_from, updated_to,
+      with_usage, limit, offset,
+    } = req.query ?? {};
     const filters = {};
     if (bank_id) filters.bank_id = bank_id;
     if (standard_id) filters.standard_id = standard_id;
@@ -1026,11 +1033,41 @@ app.get("/api/admin/questions", requireAuth, requirePermission(PERMISSIONS.QUEST
     if (status) filters.status = status;
     if (tags) filters.tags = tags.split(",");
     if (created_by) filters.created_by = created_by;
+    if (search) filters.search = search;
+    if (q) filters.q = q;
+    if (min_marks !== undefined && min_marks !== "") filters.min_marks = parseInt(min_marks, 10);
+    if (max_marks !== undefined && max_marks !== "") filters.max_marks = parseInt(max_marks, 10);
+    if (min_negative_marks !== undefined && min_negative_marks !== "") filters.min_negative_marks = parseInt(min_negative_marks, 10);
+    if (max_negative_marks !== undefined && max_negative_marks !== "") filters.max_negative_marks = parseInt(max_negative_marks, 10);
+    if (created_from) filters.created_from = created_from;
+    if (created_to) filters.created_to = created_to;
+    if (updated_from) filters.updated_from = updated_from;
+    if (updated_to) filters.updated_to = updated_to;
+    filters.with_usage = with_usage === "true" || with_usage === "1";
     filters.limit = parseInt(limit, 10) || 50;
     filters.offset = parseInt(offset, 10) || 0;
     const questions = await listQuestions(filters);
-    const total = await countQuestions(filters);
-    res.json({ questions, total, limit: filters.limit, offset: filters.offset });
+    const total = await countQuestions({ ...filters, limit: undefined, offset: undefined, with_usage: undefined });
+    res.json({ questions, total, limit: filters.limit, offset: filters.offset, with_usage: filters.with_usage });
+  } catch (err) { next(err); }
+});
+
+// Aggregate per-hierarchy question counts for filter dropdowns.
+app.get("/api/admin/questions/aggregate", requireAuth, requirePermission(PERMISSIONS.QUESTION_BANKS_VIEW), async (req, res, next) => {
+  try {
+    const q = req.query ?? {};
+    const filters = {};
+    for (const k of ["bank_id", "standard_id", "subject_id", "chapter_id", "topic_id", "type", "difficulty", "level_id", "exam_type_id", "language_id", "status", "search", "q", "created_from", "created_to", "updated_from", "updated_to"]) {
+      if (q[k]) filters[k] = q[k];
+    }
+    if (q.exam_year) filters.exam_year = parseInt(q.exam_year, 10);
+    if (q.tags) filters.tags = q.tags.split(",");
+    if (q.min_marks !== undefined && q.min_marks !== "") filters.min_marks = parseInt(q.min_marks, 10);
+    if (q.max_marks !== undefined && q.max_marks !== "") filters.max_marks = parseInt(q.max_marks, 10);
+    if (q.min_negative_marks !== undefined && q.min_negative_marks !== "") filters.min_negative_marks = parseInt(q.min_negative_marks, 10);
+    if (q.max_negative_marks !== undefined && q.max_negative_marks !== "") filters.max_negative_marks = parseInt(q.max_negative_marks, 10);
+    if (q.include) filters.include = q.include;
+    res.json(await questionAggregateCounts(filters));
   } catch (err) { next(err); }
 });
 

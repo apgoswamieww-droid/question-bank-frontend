@@ -5,7 +5,7 @@
 
 -- 1. Role enum
 do $$ begin
-  create type public.user_role as enum ('super_admin', 'teacher', 'student', 'parent');
+  create type public.user_role as enum ('super_admin', 'teacher', 'student');
 exception when duplicate_object then null; end $$;
 
 -- 2. users table (replaces server/data/users.json).
@@ -92,8 +92,7 @@ insert into public.roles (code, name, description)
 values
   ('super_admin', 'Super Admin', 'Full access to all modules and settings'),
   ('teacher', 'Teacher', 'Manage question banks and their own content'),
-  ('student', 'Student', 'View assigned question banks and take tests'),
-  ('parent', 'Parent', 'View reports for linked students')
+  ('student', 'Student', 'View assigned question banks and take tests')
 on conflict (code) do nothing;
 
 insert into public.permissions (code, label, description)
@@ -120,7 +119,5 @@ values
   ('teacher', 'question_banks.view'),
   ('teacher', 'question_banks.manage'),
   -- student
-  ('student', 'question_banks.view'),
-  -- parent
-  ('parent', 'question_banks.view')
+  ('student', 'question_banks.view')
 on conflict (role_code, permission_code) do nothing;

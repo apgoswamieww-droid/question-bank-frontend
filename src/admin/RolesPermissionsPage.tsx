@@ -49,7 +49,7 @@ const MODULE_CONFIGS: Record<string, ModuleConfig> = {
     icon: Users,
     color: "text-blue-600 bg-blue-50 ring-blue-200",
     badge: "bg-blue-100 text-blue-700",
-    description: "Manage teachers, students, parents and staff access",
+    description: "Manage teachers and students access",
   },
   "Schools Management": {
     icon: Building2,

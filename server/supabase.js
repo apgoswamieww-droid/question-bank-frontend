@@ -210,7 +210,7 @@ export async function countUsersByRole() {
       .from("users")
       .select("role");
     if (error) throw new Error(`Supabase users.count: ${error.message}`);
-    const counts = { teacher: 0, student: 0, parent: 0, super_admin: 0 };
+    const counts = { teacher: 0, student: 0, super_admin: 0 };
     for (const u of data) counts[u.role] = (counts[u.role] ?? 0) + 1;
     return counts;
   }
@@ -243,7 +243,7 @@ export async function createRole({ code, name, description }) {
 }
 
 export async function deleteRole(code) {
-  const SYSTEM_ROLES = new Set(["super_admin", "teacher", "student", "parent"]);
+  const SYSTEM_ROLES = new Set(["super_admin", "teacher", "student"]);
   if (SYSTEM_ROLES.has(code)) {
     throw new Error("System roles cannot be deleted");
   }
@@ -687,9 +687,18 @@ export async function getQuestionById(id) {
   return data ? rowToQuestion(data) : null;
 }
 
-export async function listQuestions({ bank_id, standard_id, subject_id, chapter_id, topic_id, type, difficulty, level_id, exam_type_id, language_id, exam_year, status, tags, created_by, limit = 50, offset = 0 } = {}) {
-  if (!client) return [];
-  let query = client.from("questions").select("*").order("sort_order").order("created_at", { ascending: false });
+// Shared filter application for the questions table. Works with both a
+// Supabase query builder (list/count) and with raw rows (aggregate counts).
+function applyQuestionFilters(query, filters = {}) {
+  const {
+    bank_id, standard_id, subject_id, chapter_id, topic_id,
+    type, difficulty, level_id, exam_type_id, language_id, exam_year,
+    status, tags, created_by,
+    search, q,
+    min_marks, max_marks, min_negative_marks, max_negative_marks,
+    created_from, created_to, updated_from, updated_to,
+  } = filters;
+
   if (bank_id) query = query.eq("bank_id", bank_id);
   if (standard_id) query = query.eq("standard_id", standard_id);
   if (subject_id) query = query.eq("subject_id", subject_id);
@@ -700,30 +709,114 @@ export async function listQuestions({ bank_id, standard_id, subject_id, chapter_
   if (level_id) query = query.eq("level_id", level_id);
   if (exam_type_id) query = query.eq("exam_type_id", exam_type_id);
   if (language_id) query = query.eq("language_id", language_id);
-  if (exam_year) query = query.eq("exam_year", exam_year);
+  if (exam_year) query = query.eq("exam_year", Number(exam_year));
   if (status) query = query.eq("status", status);
   if (created_by) query = query.eq("created_by", created_by);
   if (tags && tags.length > 0) query = query.overlaps("tags", tags);
-  query = query.range(offset, offset + limit - 1);
+
+  // Note: full-text keyword search (`search`/`q`) is applied in JavaScript
+  // inside listQuestions/countQuestions (see matchQuestionSearch) because
+  // Supabase's JS client does not reliably chained-filter on JSON casts.
+
+  // Scoring ranges.
+  if (min_marks !== undefined && min_marks !== null && min_marks !== "") query = query.gte("marks", Number(min_marks));
+  if (max_marks !== undefined && max_marks !== null && max_marks !== "") query = query.lte("marks", Number(max_marks));
+  if (min_negative_marks !== undefined && min_negative_marks !== null && min_negative_marks !== "") query = query.gte("negative_marks", Number(min_negative_marks));
+  if (max_negative_marks !== undefined && max_negative_marks !== null && max_negative_marks !== "") query = query.lte("negative_marks", Number(max_negative_marks));
+
+  // Date ranges.
+  if (created_from) query = query.gte("created_at", created_from);
+  if (created_to) query = query.lte("created_at", created_to);
+  if (updated_from) query = query.gte("updated_at", updated_from);
+  if (updated_to) query = query.lte("updated_at", updated_to);
+
+  return query;
+}
+
+// Apply the same filters to an in-memory array of already-mapped question rows.
+// Kept as a reusable helper for non-SQL paths (e.g. the file-backed fallback).
+function questionMatchesSearch(row, filters = {}) {
+  const needle = ((filters.search ?? filters.q) || "").trim().toLowerCase();
+  if (!needle) return true;
+  const hay = JSON.stringify(row.content || {}).toLowerCase();
+  return hay.includes(needle);
+}
+
+export async function listQuestions({ with_usage = false, ...filters } = {}) {
+  if (!client) return [];
+  const { limit = 50, offset = 0, ...rest } = filters;
+  let query = client.from("questions").select("*").order("sort_order").order("created_at", { ascending: false });
+  query = applyQuestionFilters(query, rest);
   const { data, error } = await query;
   if (error) throw new Error(`Supabase questions.list: ${error.message}`);
-  return data.map(rowToQuestion);
+
+  let questions = data.map(rowToQuestion).filter((q) => questionMatchesSearch(q, rest));
+  questions = questions.slice(offset, offset + limit);
+  if (with_usage) {
+    const ids = questions.map((q) => q.id);
+    if (ids.length > 0) {
+      const { data: usage } = await client
+        .from("question_usage_log")
+        .select("question_id")
+        .in("question_id", ids);
+      const countMap = new Map();
+      for (const row of usage || []) {
+        countMap.set(row.question_id, (countMap.get(row.question_id) || 0) + 1);
+      }
+      for (const q of questions) q.usage_count = countMap.get(q.id) || 0;
+    }
+  }
+  return questions;
 }
 
 export async function countQuestions(filters = {}) {
   if (!client) return 0;
-  let query = client.from("questions").select("id", { count: "exact", head: true });
-  if (filters.bank_id) query = query.eq("bank_id", filters.bank_id);
-  if (filters.standard_id) query = query.eq("standard_id", filters.standard_id);
-  if (filters.subject_id) query = query.eq("subject_id", filters.subject_id);
-  if (filters.chapter_id) query = query.eq("chapter_id", filters.chapter_id);
-  if (filters.topic_id) query = query.eq("topic_id", filters.topic_id);
-  if (filters.type) query = query.eq("type", filters.type);
-  if (filters.status) query = query.eq("status", filters.status);
-  if (filters.created_by) query = query.eq("created_by", filters.created_by);
+  // When a full-text search is requested we must count filtered rows in JS,
+  // so fetch (id, content) and filter locally.
+  const hasSearch = Boolean((filters.search ?? filters.q)?.trim());
+  let query = client.from("questions").select("id" + (hasSearch ? ", content" : ""), hasSearch ? undefined : { count: "exact", head: true });
+  query = applyQuestionFilters(query, filters);
+  if (hasSearch) {
+    const { data, error } = await query;
+    if (error) throw new Error(`Supabase questions.count: ${error.message}`);
+    return (data || []).filter((r) => questionMatchesSearch(r, filters)).length;
+  }
   const { count, error } = await query;
   if (error) throw new Error(`Supabase questions.count: ${error.message}`);
   return count ?? 0;
+}
+
+// Aggregate question counts grouped by each hierarchy level, honoring the given
+// (partial) filters so dropdowns can show live per-item totals. Returns:
+//   { by_standard: [{id, name, count}], by_subject: [...], by_chapter: [...], by_topic: [...] }
+export async function questionAggregateCounts(filters = {}) {
+  if (!client) {
+    return { by_standard: [], by_subject: [], by_chapter: [], by_topic: [] };
+  }
+  const picks = ["standard_id", "subject_id", "chapter_id", "topic_id"];
+  const includes = filters.include?.split(",")?.map((s) => s.trim()).filter(Boolean) ?? ["standard", "subject", "chapter", "topic"];
+  const out = {};
+  for (const key of picks) {
+    const label = key.replace("_id", "");
+    if (!includes.includes(label)) continue;
+    let query = client.from("questions").select(key, { count: "exact" });
+    // Do not apply the filter for the dimension we are grouping by.
+    const dimFilters = { ...filters };
+    delete dimFilters[key];
+    delete dimFilters.include;
+    query = applyQuestionFilters(query, dimFilters);
+    query = query.not(key, "is", null);
+    const { data, error } = await query;
+    if (error) throw new Error(`Supabase questions.aggregate.${key}: ${error.message}`);
+
+    const counts = new Map();
+    for (const row of data || []) {
+      if (!row[key]) continue;
+      counts.set(row[key], (counts.get(row[key]) || 0) + 1);
+    }
+    out["by_" + label] = Array.from(counts.entries()).map(([id, count]) => ({ id, count }));
+  }
+  return out;
 }
 
 export async function updateQuestion(id, patch) {

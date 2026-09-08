@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ExternalLink, Mail, Pencil, Plus, Trash2, Users as UsersIcon, ShieldCheck, CheckCircle2 } from "lucide-react";
+import { Mail, Pencil, Plus, Trash2, Users as UsersIcon, ShieldCheck, CheckCircle2 } from "lucide-react";
 import { api, ApiError, type AdminUser, type UserRole } from "../api/client";
 import { useAdminAuth } from "../context/useAdminAuth";
 import { PageHeader } from "./components/PageHeader";
@@ -15,7 +15,6 @@ const TITLE_BY_ROLE: Record<UserRole, string> = {
   super_admin: "Super Admins",
   teacher: "Teachers",
   student: "Students",
-  parent: "Parents",
 };
 
 export function UsersPage({ role }: { role: UserRole }) {
@@ -32,6 +31,7 @@ export function UsersPage({ role }: { role: UserRole }) {
   } | null>(null);
   const [sendingReset, setSendingReset] = useState<AdminUser | null>(null);
   const [resetSent, setResetSent] = useState<string | null>(null); // teacher name
+  const [togglingActive, setTogglingActive] = useState<string | null>(null); // user id being toggled
 
   const isSuperAdmin = currentUser?.role === "super_admin";
   const canCrud = isSuperAdmin;
@@ -103,6 +103,20 @@ export function UsersPage({ role }: { role: UserRole }) {
     await load();
   };
 
+  const handleToggleActive = async (user: AdminUser) => {
+    if (!canCrud || user.id === currentUser?.id) return;
+
+    setTogglingActive(user.id);
+    try {
+      await api.admin.updateUser(user.id, { active: !user.active });
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to update status.");
+    } finally {
+      setTogglingActive(null);
+    }
+  };
+
   const handleSendResetLink = async () => {
     if (!sendingReset) return;
     try {
@@ -164,12 +178,24 @@ export function UsersPage({ role }: { role: UserRole }) {
       header: "Status",
       sortValue: (u) => (u.active ? "active" : "inactive"),
       render: (u) => (
-        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${
-          u.active ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-slate-100 text-slate-500 ring-slate-200"
-        }`}>
+        <button
+          type="button"
+          disabled={!canCrud || u.id === currentUser?.id || togglingActive === u.id}
+          onClick={() => handleToggleActive(u)}
+          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 transition-all ${
+            u.active ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-slate-100 text-slate-500 ring-slate-200"
+          } ${
+            canCrud && u.id !== currentUser?.id
+              ? "hover:opacity-80 cursor-pointer"
+              : "cursor-default"
+          } ${
+            togglingActive === u.id ? "opacity-50" : ""
+          }`}
+          title={canCrud && u.id !== currentUser?.id ? `Click to ${u.active ? "deactivate" : "activate"}` : undefined}
+        >
           <span className={`h-1.5 w-1.5 rounded-full ${u.active ? "bg-emerald-500" : "bg-slate-400"}`} />
           {u.active ? "Active" : "Inactive"}
-        </span>
+        </button>
       ),
     },
     {
@@ -179,18 +205,6 @@ export function UsersPage({ role }: { role: UserRole }) {
       headerClassName: "w-px text-right",
       render: (u) => (
         <div className="flex justify-end gap-0.5">
-          {role === "teacher" && isSuperAdmin && (
-            <button
-              type="button"
-              onClick={() => navigate(`/admin/teachers/${u.id}/editor`)}
-              aria-label={`Open editor for ${u.name}`}
-              title="Open question bank editor"
-              className="flex h-8 items-center justify-center gap-1 rounded-lg px-2 text-xs font-semibold text-white transition hover:opacity-90"
-              style={{ backgroundColor: "var(--color-primary)" }}
-            >
-              <ExternalLink className="h-3.5 w-3.5" aria-hidden /> Editor
-            </button>
-          )}
           {role === "teacher" && canCrud && (
             <button
               type="button"
