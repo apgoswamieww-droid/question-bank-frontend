@@ -23,39 +23,23 @@
 .scrollbar-thin::-webkit-scrollbar {
   width: 4px;
 }
+
 .scrollbar-thin::-webkit-scrollbar-track {
   background: transparent;
 }
+
 .scrollbar-thin::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 9999px;
 }
+
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
 .scrollbar-thin {
   scrollbar-width: thin;
   scrollbar-color: #cbd5e1 transparent;
-}
-
-@font-face {
-  font-family: "KAP110";
-  src: url("/fonts/kap110.ttf") format("truetype");
-}
-
-@font-face {
-  font-family: "KAP111";
-  src: url("/fonts/kap111.ttf") format("truetype");
-}
-
-@font-face {
-  font-family: "KAP112";
-  src: url("/fonts/kap112.ttf") format("truetype");
-}
-
-@font-face {
-  font-family: "KAP122";
-  src: url("/fonts/kap122.ttf") format("truetype");
 }
 
 
@@ -204,10 +188,10 @@ body {
 
 
 .ProseMirror {
-  min-height: 500px;
-  padding: 30px;
+  min-height: 200px;
+  padding: 10px;
   outline: none;
-  font-size: 18px;
+  font-size: 16px;
   line-height: 1.7;
   font-family: "Times New Roman", Times, serif;
   counter-reset: questionCounter;
@@ -667,7 +651,7 @@ body {
 }
 
 .formula-chip .katex {
-  font-size: 0.95em;
+  font-size: 1.3em !important;
 }
 
 .symbol-chip:hover,
@@ -915,9 +899,3 @@ body {
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
   z-index: 9999;
 }
-
-
-
-
-
-

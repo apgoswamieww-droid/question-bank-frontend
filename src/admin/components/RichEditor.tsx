@@ -8,7 +8,6 @@ import {
   Heading2,
   Image as ImageIcon,
   Italic,
-  Languages,
   List,
   ListOrdered,
   Redo2,
@@ -28,10 +27,8 @@ import { FontMark } from "../../extensions/FontMark";
 import { useMathModal } from "../../hooks/useMathModal";
 import { useFontMarks } from "../../hooks/useFontMarks";
 import { MathEditorModal } from "../../MathEditorModal";
-import { GujaratiConverterModal } from "../../components/GujaratiConverterModal";
-import type { KapFont } from "../../converter/types";
+import { readMathFromClipboard, hasMathMLOnClipboard } from "../../utils/mathPaste";
 
-const fonts = ["Normal", "KAP110", "KAP111", "KAP112", "KAP122", "KAP140"];
 const fontSizes = [12, 14, 16, 18, 20, 24, 28, 32, 36];
 
 interface RichEditorProps {
@@ -75,8 +72,8 @@ function valueToHtml(value: unknown): string {
 }
 
 export function RichEditor({ value, onChange, placeholder, minHeight = "9rem", disabled, compact }: RichEditorProps) {
-  const [isConverterOpen, setIsConverterOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [pasteError, setPasteError] = useState<string | null>(null);
   const {
     isMathModalOpen,
     mathInitialLatex,
@@ -96,14 +93,41 @@ export function RichEditor({ value, onChange, placeholder, minHeight = "9rem", d
       MathNode.configure({ onOpenEditor: handleOpenMathEditor }),
     ],
     content: "",
-    editorProps: { attributes: { class: "prose max-w-none focus:outline-none" } },
+    editorProps: {
+      attributes: { class: "prose max-w-none focus:outline-none" },
+      handlePaste: (_view, event) => {
+        const math = event.clipboardData ? readMathFromClipboard(event.clipboardData) : [];
+        if (math.length > 0) {
+          event.preventDefault();
+          setPasteError(null);
+          const chain = editor.chain().focus();
+          math.forEach(({ latex, displayMode }, idx) => {
+            chain.insertContent({
+              type: "mathNode",
+              attrs: { latex, displayMode },
+            });
+            if (idx < math.length - 1) chain.insertContent(" ");
+          });
+          chain.run();
+          return true;
+        }
+        if (event.clipboardData && hasMathMLOnClipboard(event.clipboardData)) {
+          event.preventDefault();
+          setPasteError(
+            "MathType equation could not be converted to LaTeX. Please copy the equation again and retry."
+          );
+          return true;
+        }
+        return false;
+      },
+    },
     editable: !disabled,
     onUpdate: ({ editor: ed }) => {
       onChange(ed.getHTML() || "");
     },
   });
 
-  const { selectedFont, selectedFontSize, saveSelection, applyFont, applyFontSize } = useFontMarks(editor);
+  const { selectedFontSize, saveSelection, applyFontSize } = useFontMarks(editor);
 
   // Sync from external value (initial load / switching questions).
   useEffect(() => {
@@ -148,33 +172,6 @@ export function RichEditor({ value, onChange, placeholder, minHeight = "9rem", d
     e.target.value = "";
   };
 
-  const KAP_SIZE = "14px";
-
-  const handleConverterInsert = (kapText: string, font: KapFont) => {
-    editor?.chain().focus().insertContent({
-      type: "text",
-      text: kapText,
-      marks: [{ type: "fontFamily", attrs: { fontFamily: font, fontSize: KAP_SIZE } }],
-    }).run();
-  };
-
-  const handleConverterReplaceSelection = (kapText: string, font: KapFont) => {
-    if (!editor) return;
-    const { from, to } = editor.state.selection;
-    const startMarks = editor.state.doc.resolve(from).marks() ?? editor.state.storedMarks ?? [];
-    const preservedMarks = startMarks
-      .filter((m) => m.type.name !== "fontFamily")
-      .map((m) => ({ type: m.type.name, attrs: m.attrs }));
-    editor.chain().focus().insertContentAt(
-      { from, to },
-      {
-        type: "text",
-        text: kapText,
-        marks: [...preservedMarks, { type: "fontFamily", attrs: { fontFamily: font, fontSize: KAP_SIZE } }],
-      }
-    ).run();
-  };
-
   if (!editor) {
     return <div className="h-36 animate-pulse rounded-xl bg-slate-100" />;
   }
@@ -195,16 +192,6 @@ export function RichEditor({ value, onChange, placeholder, minHeight = "9rem", d
       <div className={`flex flex-wrap items-center gap-0.5 rounded-t-xl border border-b-0 border-slate-300 bg-slate-50 ${
         compact ? "px-1 py-0.5" : "px-1.5 py-1.5"
       }`}>
-        <select
-          value={selectedFont}
-          onChange={(e) => { saveSelection(); applyFont(e.target.value); }}
-          className={`rounded-lg border border-slate-300 bg-white px-1 text-xs font-medium text-slate-700 focus:border-primary focus:outline-none ${
-            compact ? "h-6" : "h-8"
-          }`}
-          title="Font"
-        >
-          {fonts.map((f) => <option key={f} value={f}>{f}</option>)}
-        </select>
         <select
           value={selectedFontSize}
           onChange={(e) => { saveSelection(); applyFontSize(e.target.value); }}
@@ -246,7 +233,6 @@ export function RichEditor({ value, onChange, placeholder, minHeight = "9rem", d
           </>
         )}
         {toolbarBtn(false, "Insert equation", () => openNewMathModal(), <Sigma className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} />, compact)}
-        {toolbarBtn(false, "Gujarati converter", () => setIsConverterOpen(true), <Languages className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} />, compact)}
 
         {!compact && (
           <span className="ml-auto flex gap-0.5">
@@ -264,6 +250,15 @@ export function RichEditor({ value, onChange, placeholder, minHeight = "9rem", d
         }`}
         style={{ minHeight }}
       />
+      {pasteError && (
+        <div
+          role="alert"
+          className="mt-1 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800"
+        >
+          <span>⚠</span>
+          <span>{pasteError}</span>
+        </div>
+      )}
       {placeholder && !editor.state.doc.textContent && (
         <div className="pointer-events-none -mt-11 ml-4 select-none text-sm text-slate-400">{placeholder}</div>
       )}
@@ -279,13 +274,6 @@ export function RichEditor({ value, onChange, placeholder, minHeight = "9rem", d
           onSubmit={handleMathSubmit}
         />
       )}
-
-      <GujaratiConverterModal
-        isOpen={isConverterOpen}
-        onClose={() => setIsConverterOpen(false)}
-        onInsert={handleConverterInsert}
-        onReplaceSelection={handleConverterReplaceSelection}
-      />
     </div>
   );
 }

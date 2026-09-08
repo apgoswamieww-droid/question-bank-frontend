@@ -14,7 +14,6 @@ import {
   HelpCircle,
   Image as ImageIcon,
   Sigma,
-  Languages,
 } from "lucide-react";
 import type { Editor } from "@tiptap/react";
 import {
@@ -23,33 +22,26 @@ import {
 } from "../utils/questionBlockTemplate";
 import { TextSelection } from "@tiptap/pm/state";
 
-const fonts = ["Normal", "KAP110", "KAP111", "KAP112", "KAP122"];
 const fontSizes = [12, 14, 16, 18, 20, 24, 28, 32, 36];
 
 interface EditorToolbarProps {
   editor: Editor;
-  selectedFont: string;
   selectedFontSize: string;
   saveSelection: () => void;
-  applyFont: (font: string) => void;
   applyFontSize: (size: string) => void;
   onAlignment: (alignment: "left" | "center" | "right" | "justify") => void;
   onInsertImage: () => void;
   onInsertEquation: () => void;
-  onOpenConverter: () => void;
 }
 
 export function EditorToolbar({
   editor,
-  selectedFont,
   selectedFontSize,
   saveSelection,
-  applyFont,
   applyFontSize,
   onAlignment,
   onInsertImage,
   onInsertEquation,
-  onOpenConverter,
 }: EditorToolbarProps) {
   const insertQuestionBlock = () => {
     editor
@@ -152,20 +144,6 @@ export function EditorToolbar({
       <div className="toolbar-separator" />
 
       <div className="toolbar-group">
-        <select
-          className="toolbar-select font-select"
-          value={selectedFont}
-          onMouseDown={saveSelection}
-          onChange={(e) => applyFont(e.target.value)}
-          title="Font Family"
-        >
-          {fonts.map((font) => (
-            <option key={font} value={font}>
-              {font}
-            </option>
-          ))}
-        </select>
-
         <select
           className="toolbar-select size-select"
           value={selectedFontSize}
@@ -304,17 +282,6 @@ export function EditorToolbar({
           onClick={onInsertEquation}
         >
           <Sigma size={16} strokeWidth={2} /> <span>Equation</span>
-        </button>
-
-        <button
-          type="button"
-          className="btn-with-label btn-action-accent"
-          title="Gujarati Unicode to KAP Converter"
-          aria-label="Gujarati Converter"
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={onOpenConverter}
-        >
-          <Languages size={16} strokeWidth={2} /> <span>Gujarati</span>
         </button>
       </div>
 

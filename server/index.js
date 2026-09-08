@@ -24,6 +24,8 @@ import {
   setUserRole,
   countUsersByRole,
   listRoles,
+  createRole,
+  deleteRole,
   listPermissions,
   permissionsForRole,
   setRolePermissions,
@@ -48,6 +50,8 @@ import {
   deleteTopic,
   listExamTypes,
   createExamType,
+  updateExamType,
+  deleteExamType,
   // Question Levels
   listQuestionLevels,
   createQuestionLevel,
@@ -87,6 +91,8 @@ import {
   countTests,
   listLanguages,
   createLanguage,
+  updateLanguage,
+  deleteLanguage,
   listSchools,
   createSchool,
   updateSchool,
@@ -560,6 +566,52 @@ app.get(
   }
 );
 
+app.post(
+  "/api/admin/roles",
+  requireAuth,
+  requirePermission(PERMISSIONS.ROLES_MANAGE),
+  async (req, res, next) => {
+    try {
+      const { code, name, description } = req.body ?? {};
+      if (!isSafeIdentifier(name) || !code || typeof code !== "string") {
+        return res.status(400).json({ error: "Role code and name are required.", code: "VALIDATION" });
+      }
+      const cleanCode = code.trim().toLowerCase().replace(/[^a-z0-9_]/g, "_");
+      const created = await createRole({
+        code: cleanCode,
+        name: name.trim(),
+        description: description?.trim() || null,
+      });
+      res.status(201).json({ role: created });
+    } catch (err) {
+      if (String(err?.message || "").includes("duplicate")) {
+        return res.status(409).json({ error: "Role code already exists.", code: "DUPLICATE" });
+      }
+      next(err);
+    }
+  }
+);
+
+app.delete(
+  "/api/admin/roles/:code",
+  requireAuth,
+  requirePermission(PERMISSIONS.ROLES_MANAGE),
+  async (req, res, next) => {
+    try {
+      const { code } = req.params;
+      const SYSTEM_ROLES = new Set(["super_admin", "teacher", "student", "parent"]);
+      if (SYSTEM_ROLES.has(code)) {
+        return res.status(400).json({ error: "Cannot delete built-in system role.", code: "SYSTEM_ROLE" });
+      }
+      const removed = await deleteRole(code);
+      if (!removed) return res.status(404).json({ error: "Role not found.", code: "NOT_FOUND" });
+      res.json({ deleted: true });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 app.get(
   "/api/admin/permissions",
   requireAuth,
@@ -567,9 +619,15 @@ app.get(
   async (_req, res, next) => {
     try {
       const permissions = await listPermissions();
+      const allPermCodes = permissions.map((p) => p.code);
+      const roles = await listRoles();
       const matrix = {};
-      for (const role of (await listRoles()).map((r) => r.code)) {
-        matrix[role] = await permissionsForRole(role);
+      for (const role of roles.map((r) => r.code)) {
+        if (role === "super_admin") {
+          matrix[role] = allPermCodes;
+        } else {
+          matrix[role] = await permissionsForRole(role);
+        }
       }
       res.json({ permissions, matrix });
     } catch (err) {
@@ -585,16 +643,17 @@ app.put(
   async (req, res, next) => {
     try {
       const { code } = req.params;
-      if (!VALID_ROLES.has(code)) {
-        return res.status(400).json({ error: "Invalid role code.", code: "VALIDATION" });
+      const allRoles = await listRoles();
+      if (!allRoles.some((r) => r.code === code)) {
+        return res.status(404).json({ error: "Role not found.", code: "NOT_FOUND" });
       }
       const { permissions } = req.body ?? {};
-      if (!Array.isArray(permissions) || permissions.some((p) => !VALID_PERMISSIONS.has(p))) {
+      if (!Array.isArray(permissions)) {
         return res.status(400).json({ error: "Invalid permissions array.", code: "VALIDATION" });
       }
-      // super_admin always keeps full access; never let it be reduced.
-      const finalPerms =
-        code === "super_admin" ? [...VALID_PERMISSIONS] : permissions;
+      const allPerms = (await listPermissions()).map((p) => p.code);
+      const validPerms = permissions.filter((p) => allPerms.includes(p));
+      const finalPerms = code === "super_admin" ? allPerms : validPerms;
       await setRolePermissions(code, finalPerms);
       res.json({ role: code, permissions: await permissionsForRole(code) });
     } catch (err) {
@@ -801,6 +860,23 @@ app.post("/api/admin/exam-types", requireAuth, requireSuperAdmin, async (req, re
   }
 });
 
+app.patch("/api/admin/exam-types/:id", requireAuth, requireSuperAdmin, async (req, res, next) => {
+  try {
+    const { name, category, description, sort_order, active } = req.body ?? {};
+    const updated = await updateExamType(req.params.id, { name, category, description, sort_order, active });
+    if (!updated) return res.status(404).json({ error: "Not found.", code: "NOT_FOUND" });
+    res.json({ examType: updated });
+  } catch (err) { next(err); }
+});
+
+app.delete("/api/admin/exam-types/:id", requireAuth, requireSuperAdmin, async (req, res, next) => {
+  try {
+    const removed = await deleteExamType(req.params.id);
+    if (!removed) return res.status(404).json({ error: "Not found.", code: "NOT_FOUND" });
+    res.json({ deleted: true });
+  } catch (err) { next(err); }
+});
+
 // ---------------------------------------------------------------
 // Admin: Master Data — Languages
 // ---------------------------------------------------------------
@@ -821,6 +897,23 @@ app.post("/api/admin/languages", requireAuth, requireSuperAdmin, async (req, res
     if (String(err?.message || "").includes("duplicate")) return res.status(409).json({ error: "Language already exists.", code: "DUPLICATE" });
     next(err);
   }
+});
+
+app.patch("/api/admin/languages/:id", requireAuth, requireSuperAdmin, async (req, res, next) => {
+  try {
+    const { code, name, native_name, active } = req.body ?? {};
+    const updated = await updateLanguage(req.params.id, { code, name, native_name, active });
+    if (!updated) return res.status(404).json({ error: "Not found.", code: "NOT_FOUND" });
+    res.json({ language: updated });
+  } catch (err) { next(err); }
+});
+
+app.delete("/api/admin/languages/:id", requireAuth, requireSuperAdmin, async (req, res, next) => {
+  try {
+    const removed = await deleteLanguage(req.params.id);
+    if (!removed) return res.status(404).json({ error: "Not found.", code: "NOT_FOUND" });
+    res.json({ deleted: true });
+  } catch (err) { next(err); }
 });
 
 // ---------------------------------------------------------------

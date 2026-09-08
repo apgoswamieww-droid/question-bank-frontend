@@ -6,8 +6,6 @@ import {
   Printer,
   Sliders,
   Clock,
-  Eye,
-  Languages,
 } from "lucide-react";
 import type { RecentFileItem } from "../types/files";
 
@@ -18,8 +16,6 @@ interface DocumentToolbarProps {
   onSaveAs: () => void;
   onExamSettings: () => void;
   onPrintPreview: () => void;
-  onOpenAnalyzer: () => void;
-  onOpenKapImporter: () => void;
   recentFiles: RecentFileItem[];
   isRecentOpen: boolean;
   setIsRecentOpen: (open: boolean) => void;
@@ -32,8 +28,6 @@ export function DocumentToolbar({
   onSaveAs,
   onExamSettings,
   onPrintPreview,
-  onOpenAnalyzer,
-  onOpenKapImporter,
   recentFiles,
   isRecentOpen,
   setIsRecentOpen,
@@ -89,24 +83,6 @@ export function DocumentToolbar({
         >
           <Printer size={15} strokeWidth={2} />{" "}
           <span>Print Preview / PDF</span>
-        </button>
-        <button
-          type="button"
-          className="btn-with-label btn-action-accent"
-          title="KAP AI Analyzer - Map legacy font glyphs"
-          onClick={onOpenAnalyzer}
-        >
-          <Eye size={15} strokeWidth={2} />{" "}
-          <span>KAP AI Analyzer</span>
-        </button>
-        <button
-          type="button"
-          className="btn-with-label btn-action-accent"
-          title="KAP → Unicode - Convert legacy KAP font text to Unicode Gujarati"
-          onClick={onOpenKapImporter}
-        >
-          <Languages size={15} strokeWidth={2} />{" "}
-          <span>KAP → Unicode</span>
         </button>
       </div>
 

@@ -63,7 +63,6 @@ export const MathNode = Node.create<MathNodeOptions>({
         "data-type": "math-node",
         class: `math-node-rendered ${displayMode ? "is-display" : "is-inline"}`,
       }),
-      0,
     ];
   },
 

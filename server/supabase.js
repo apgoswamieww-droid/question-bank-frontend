@@ -25,10 +25,41 @@ export const client = supabaseConfigured
 export const PERMISSIONS = {
   USERS_VIEW: "users.view",
   USERS_MANAGE: "users.manage",
+  SCHOOLS_VIEW: "schools.view",
+  SCHOOLS_MANAGE: "schools.manage",
   ROLES_MANAGE: "roles.manage",
   QUESTION_BANKS_VIEW: "question_banks.view",
   QUESTION_BANKS_MANAGE: "question_banks.manage",
+  QUESTIONS_DELETE: "questions.delete",
+  EDITOR_ACCESS: "editor.access",
+  TESTS_VIEW: "tests.view",
+  TESTS_MANAGE: "tests.manage",
+  TESTS_DELETE: "tests.delete",
+  ANALYTICS_VIEW: "analytics.view",
+  MASTER_DATA_VIEW: "master_data.view",
+  MASTER_DATA_MANAGE: "master_data.manage",
   SETTINGS_VIEW: "settings.view",
+  SETTINGS_MANAGE: "settings.manage",
+};
+
+export const PERMISSION_MODULE_MAP = {
+  "users.view": "Users Management",
+  "users.manage": "Users Management",
+  "schools.view": "Schools Management",
+  "schools.manage": "Schools Management",
+  "question_banks.view": "Question Bank & Editor",
+  "question_banks.manage": "Question Bank & Editor",
+  "questions.delete": "Question Bank & Editor",
+  "editor.access": "Question Bank & Editor",
+  "tests.view": "Tests & Exam Papers",
+  "tests.manage": "Tests & Exam Papers",
+  "tests.delete": "Tests & Exam Papers",
+  "analytics.view": "Analytics & Reports",
+  "master_data.view": "Academic Hierarchy",
+  "master_data.manage": "Academic Hierarchy",
+  "settings.view": "System & Settings",
+  "settings.manage": "System & Settings",
+  "roles.manage": "System & Settings",
 };
 
 export const ALL_PERMISSIONS = Object.values(PERMISSIONS);
@@ -198,13 +229,45 @@ export async function listRoles() {
   return fileRepo.listRoles();
 }
 
+export async function createRole({ code, name, description }) {
+  if (client) {
+    const { data, error } = await client
+      .from("roles")
+      .insert({ code, name, description: description || null })
+      .select()
+      .single();
+    if (error) throw new Error(`Supabase roles.create: ${error.message}`);
+    return data;
+  }
+  return { code, name, description: description || null };
+}
+
+export async function deleteRole(code) {
+  const SYSTEM_ROLES = new Set(["super_admin", "teacher", "student", "parent"]);
+  if (SYSTEM_ROLES.has(code)) {
+    throw new Error("System roles cannot be deleted");
+  }
+  if (client) {
+    const { error } = await client.from("roles").delete().eq("code", code);
+    if (error) throw new Error(`Supabase roles.delete: ${error.message}`);
+    return true;
+  }
+  return true;
+}
+
 export async function listPermissions() {
+  let rows = [];
   if (client) {
     const { data, error } = await client.from("permissions").select("*").order("code");
     if (error) throw new Error(`Supabase permissions.list: ${error.message}`);
-    return data;
+    rows = data || [];
+  } else {
+    rows = fileRepo.listPermissions();
   }
-  return fileRepo.listPermissions();
+  return rows.map((p) => ({
+    ...p,
+    module: PERMISSION_MODULE_MAP[p.code] || "General",
+  }));
 }
 
 export async function listRolePermissions() {
@@ -217,6 +280,10 @@ export async function listRolePermissions() {
 }
 
 export async function permissionsForRole(roleCode) {
+  if (roleCode === "super_admin") {
+    const all = await listPermissions();
+    return all.map((p) => p.code);
+  }
   const rows = await listRolePermissions();
   return rows
     .filter((r) => r.role_code === roleCode)
@@ -235,6 +302,12 @@ export async function setRolePermissions(roleCode, permissionCodes) {
     return fileRepo.setRolePermissions(roleCode, unique);
   }
 
+  // super_admin always keeps full access
+  if (roleCode === "super_admin") {
+    const all = await listPermissions();
+    return all.map((p) => p.code);
+  }
+
   // Replace all rows for the role in a transaction-ish manner.
   const { error: delErr } = await client
     .from("role_permissions")
@@ -249,7 +322,6 @@ export async function setRolePermissions(roleCode, permissionCodes) {
     if (insErr) throw new Error(`Supabase role_permissions.insert: ${insErr.message}`);
   }
 
-  // super_admin must always retain full permissions.
   return unique;
 }
 
@@ -441,6 +513,26 @@ export async function createExamType({ name, category, description, sort_order =
   return data;
 }
 
+export async function updateExamType(id, { name, category, description, sort_order, active }) {
+  if (!client) return null;
+  const patch = {};
+  if (name !== undefined) patch.name = name;
+  if (category !== undefined) patch.category = category;
+  if (description !== undefined) patch.description = description;
+  if (sort_order !== undefined) patch.sort_order = sort_order;
+  if (active !== undefined) patch.active = active;
+  const { data, error } = await client.from("exam_types").update(patch).eq("id", id).select().single();
+  if (error) throw new Error(`Supabase exam_types.update: ${error.message}`);
+  return data;
+}
+
+export async function deleteExamType(id) {
+  if (!client) return false;
+  const { error } = await client.from("exam_types").delete().eq("id", id);
+  if (error) throw new Error(`Supabase exam_types.delete: ${error.message}`);
+  return true;
+}
+
 // ---------------------------------------------------------------------------
 // Master Data: Languages
 // ---------------------------------------------------------------------------
@@ -456,6 +548,25 @@ export async function createLanguage({ code, name, native_name }) {
   const { data, error } = await client.from("languages").insert({ code, name, native_name }).select().single();
   if (error) throw new Error(`Supabase languages.create: ${error.message}`);
   return data;
+}
+
+export async function updateLanguage(id, { code, name, native_name, active }) {
+  if (!client) return null;
+  const patch = {};
+  if (code !== undefined) patch.code = code;
+  if (name !== undefined) patch.name = name;
+  if (native_name !== undefined) patch.native_name = native_name;
+  if (active !== undefined) patch.active = active;
+  const { data, error } = await client.from("languages").update(patch).eq("id", id).select().single();
+  if (error) throw new Error(`Supabase languages.update: ${error.message}`);
+  return data;
+}
+
+export async function deleteLanguage(id) {
+  if (!client) return false;
+  const { error } = await client.from("languages").delete().eq("id", id);
+  if (error) throw new Error(`Supabase languages.delete: ${error.message}`);
+  return true;
 }
 
 // ---------------------------------------------------------------------------

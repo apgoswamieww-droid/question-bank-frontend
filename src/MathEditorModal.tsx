@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import katex from "katex";
 import { X, Check, AlertTriangle } from "lucide-react";
+import { readMathFromClipboard } from "./utils/mathPaste";
 
 interface MathEditorModalProps {
   isOpen: boolean;
@@ -420,6 +421,23 @@ export const MathEditorModal: React.FC<MathEditorModalProps> = ({
     onClose();
   };
 
+  const handleLatexPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const math = e.clipboardData ? readMathFromClipboard(e.clipboardData) : [];
+    if (math.length === 0) return;
+    e.preventDefault();
+    const pastedLatex = math.map((m) => m.latex).join(" ");
+    const textarea = textareaRef.current;
+    const start = textarea?.selectionStart ?? latex.length;
+    const end = textarea?.selectionEnd ?? latex.length;
+    const next = latex.substring(0, start) + ` ${pastedLatex} ` + latex.substring(end);
+    setLatex(next.trim());
+    window.setTimeout(() => {
+      textarea?.focus();
+      const caret = start + pastedLatex.length + 1;
+      textarea?.setSelectionRange(caret, caret);
+    }, 10);
+  };
+
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -573,6 +591,7 @@ export const MathEditorModal: React.FC<MathEditorModalProps> = ({
               ref={textareaRef}
               value={latex}
               onChange={(e) => setLatex(e.target.value)}
+              onPaste={handleLatexPaste}
               placeholder="Click a chip above, then edit its values  —  Ctrl+Enter to insert"
               rows={3}
             />

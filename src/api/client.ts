@@ -2,7 +2,7 @@ const TOKEN_KEY = "qb.admin.token";
 const USER_KEY = "qb.admin.user";
 const PERMS_KEY = "qb.admin.permissions";
 
-export type UserRole = "super_admin" | "teacher" | "student" | "parent";
+export type UserRole = "super_admin" | "teacher" | "student" | "parent" | (string & {});
 
 export interface AdminUser {
   id: string;
@@ -24,10 +24,11 @@ export interface Permission {
   code: string;
   label: string;
   description: string;
+  module?: string;
 }
 
 export interface Role {
-  code: UserRole;
+  code: string;
   name: string;
   description: string | null;
 }
@@ -562,6 +563,12 @@ export const api = {
     create(data: { name: string; category?: string; description?: string; sort_order?: number }): Promise<{ examType: ExamType }> {
       return request("/admin/exam-types", { method: "POST", body: data });
     },
+    update(id: string, data: Partial<ExamType>): Promise<{ examType: ExamType }> {
+      return request(`/admin/exam-types/${id}`, { method: "PATCH", body: data });
+    },
+    delete(id: string): Promise<{ deleted: boolean }> {
+      return request(`/admin/exam-types/${id}`, { method: "DELETE" });
+    },
   },
   languages: {
     list(): Promise<{ languages: Language[] }> {
@@ -569,6 +576,12 @@ export const api = {
     },
     create(data: { code: string; name: string; native_name?: string }): Promise<{ language: Language }> {
       return request("/admin/languages", { method: "POST", body: data });
+    },
+    update(id: string, data: Partial<Language>): Promise<{ language: Language }> {
+      return request(`/admin/languages/${id}`, { method: "PATCH", body: data });
+    },
+    delete(id: string): Promise<{ deleted: boolean }> {
+      return request(`/admin/languages/${id}`, { method: "DELETE" });
     },
   },
   questionLevels: {
@@ -700,13 +713,19 @@ export const api = {
     listRoles(): Promise<{ roles: Role[] }> {
       return request("/admin/roles");
     },
+    createRole(data: { code: string; name: string; description?: string }): Promise<{ role: Role }> {
+      return request("/admin/roles", { method: "POST", body: data });
+    },
+    deleteRole(code: string): Promise<{ deleted: boolean }> {
+      return request(`/admin/roles/${code}`, { method: "DELETE" });
+    },
     listPermissions(): Promise<{ permissions: Permission[]; matrix: PermissionMatrix }> {
       return request("/admin/permissions");
     },
     setRolePermissions(
-      roleCode: UserRole,
+      roleCode: string,
       permissions: string[]
-    ): Promise<{ role: UserRole; permissions: string[] }> {
+    ): Promise<{ role: string; permissions: string[] }> {
       return request(`/admin/roles/${roleCode}/permissions`, {
         method: "PUT",
         body: { permissions },

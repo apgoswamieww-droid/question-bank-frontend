@@ -1,15 +1,15 @@
 # Question Bank
 opencode -s ses_fc8c650d3ffe5tz4KT3NHna4jd
 opencode -s ses_fc8c650d3ffe5tz4KT3NHna4jd
-Desktop application for creating, editing, and exporting exam question papers. Built with React, TipTap, and Electron. Targets Indian educational institutions with support for MCQ-based exams and Gujarati language via legacy KAP fonts.
+Desktop application for creating, editing, and exporting exam question papers. Built with React, TipTap, and Electron. Targets Indian educational institutions with support for MCQ-based exams and Gujarati language input.
 
 ## Features
 
 - **MCQ Question Blocks** — Structured blocks with question, 4 options (A-D), answer, and marks
-- **Rich Text Editor** — Bold, italic, underline, alignment, lists, font family/size
+- **Rich Text Editor** — Bold, italic, underline, alignment, lists, font size
 - **A4 Print Layout** — Auto-pagination, exam headers, section dividers, page numbering
 - **PDF Export** — Via Electron's printToPDF
-- **Gujarati Support** — Unicode-to-KAP font conversion (KAP110, KAP111, KAP112, KAP122)
+- **Gujarati Support** — Direct Unicode Gujarati text input
 - **Math Equations** — KaTeX/LaTeX editor with categorized formula library
 - **Image Support** — Paste, drop, or file insert with resize and alignment
 - **Exam Settings** — Configure institute name, title, subject, sections, logo, instructions
@@ -73,13 +73,10 @@ question-bank/
 │   ├── extensions/        # Custom TipTap extensions
 │   ├── hooks/             # Custom React hooks
 │   ├── components/        # UI components
-│   ├── converter/         # Gujarati Unicode → KAP conversion engine
 │   ├── print/             # Print/PDF layout engine
 │   ├── types/             # TypeScript types
 │   ├── utils/             # Utilities
 │   └── test/              # Test setup
-├── scripts/               # Offline tooling (font mapping)
-├── proof-sheets/          # KAP font glyph verification sheets
 └── doc/                   # Development logs
 ```
 
@@ -104,7 +101,7 @@ npm test           # Single run
 npm run test:watch # Watch mode
 ```
 
-Tests cover the Gujarati conversion engine, document migration, and validation logic.
+Tests cover document migration, editor utilities, and validation logic.
 
 ## License
 

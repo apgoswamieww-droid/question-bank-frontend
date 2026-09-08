@@ -10,18 +10,7 @@ import {
   ZoomOut,
 } from "lucide-react";
 import katexCss from "katex/dist/katex.min.css?raw";
-import kap110Font from "../assets/fonts/kap110.ttf?inline";
-import kap111Font from "../assets/fonts/kap111.ttf?inline";
-import kap112Font from "../assets/fonts/kap112.ttf?inline";
-import kap122Font from "../assets/fonts/kap122.ttf?inline";
 import { openPrintWindow } from "../web/printApi";
-
-const KAP_FONT_FACES = `
-  @font-face { font-family: "KAP110"; src: url("${kap110Font}") format("truetype"); }
-  @font-face { font-family: "KAP111"; src: url("${kap111Font}") format("truetype"); }
-  @font-face { font-family: "KAP112"; src: url("${kap112Font}") format("truetype"); }
-  @font-face { font-family: "KAP122"; src: url("${kap122Font}") format("truetype"); }
-`;
 
 const MM_TO_PX = 96 / 25.4;
 
@@ -232,8 +221,6 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
               padding: 0;
               background: #ffffff;
             }
-            /* Embedded KAP Fonts (base64, works offline & inside data: URL PDF window) */
-            ${KAP_FONT_FACES}
 
             .print-paper-container { background: #fff; font-family: "Times New Roman", Times, serif; font-size: 14pt; }
             .print-paper-page { width: 210mm; min-height: 297mm; padding: ${settings.marginTop}mm ${settings.marginRight}mm ${settings.marginBottom}mm ${settings.marginLeft}mm; box-sizing: border-box; margin: 0 auto; page-break-after: always; position: relative; }

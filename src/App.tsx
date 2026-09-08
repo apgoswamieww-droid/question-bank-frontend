@@ -15,14 +15,12 @@ import { ResizableImage } from "./ResizableImage";
 import { MathNode } from "./MathNode";
 import { FontMark } from "./extensions/FontMark";
 import { MathEditorModal } from "./MathEditorModal";
+import { readMathFromClipboard, hasMathMLOnClipboard } from "./utils/mathPaste";
 import { PrintPreviewModal } from "./print/PrintPreviewModal";
 import { ExamSettingsModal } from "./components/ExamSettingsModal";
-import { GujaratiConverterModal } from "./components/GujaratiConverterModal";
-import { KapAnalyzerReview } from "./components/KapAnalyzerReview";
 import { AppHeader } from "./components/AppHeader";
 import { DocumentToolbar } from "./components/DocumentToolbar";
 import { EditorToolbar } from "./components/EditorToolbar";
-import type { KapFont } from "./converter/types";
 
 import { useToast } from "./hooks/useToast";
 import { useAutoSave } from "./hooks/useAutoSave";
@@ -32,7 +30,6 @@ import { useRecentFiles } from "./hooks/useRecentFiles";
 import { useMathModal } from "./hooks/useMathModal";
 import { useFontMarks } from "./hooks/useFontMarks";
 import { useDocumentManagement } from "./hooks/useDocumentManagement";
-import { useKapAnalyzer } from "./hooks/useKapAnalyzer";
 
 import "./index.css";
 
@@ -56,10 +53,6 @@ function App() {
 
   const [isPrintPreviewOpen, setIsPrintPreviewOpen] = useState(false);
   const [isExamSettingsOpen, setIsExamSettingsOpen] = useState(false);
-  const [isConverterOpen, setIsConverterOpen] = useState(false);
-  const [isAnalyzerOpen, setIsAnalyzerOpen] = useState(false);
-
-  const kapAnalyzer = useKapAnalyzer();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -116,6 +109,30 @@ function App() {
 
     editorProps: {
       handlePaste: (_view, event) => {
+        if (event.clipboardData) {
+          const math = readMathFromClipboard(event.clipboardData);
+          if (math.length > 0) {
+            event.preventDefault();
+            const chain = editor.chain().focus();
+            math.forEach(({ latex, displayMode }, idx) => {
+              chain.insertContent({
+                type: "mathNode",
+                attrs: { latex, displayMode },
+              });
+              if (idx < math.length - 1) chain.insertContent(" ");
+            });
+            chain.run();
+            return true;
+          }
+          if (hasMathMLOnClipboard(event.clipboardData)) {
+            event.preventDefault();
+            showToast(
+              "MathType equation could not be converted to LaTeX. Please copy the equation again and retry."
+            );
+            return true;
+          }
+        }
+
         const items = event.clipboardData?.items;
         if (!items) return false;
 
@@ -180,7 +197,7 @@ function App() {
     },
 
     content: `
-      <p><span style="font-family: KAP112; font-size: 24px;">VF5[,F VF5[,F</span></p>
+      <p>Example question paper text.</p>
       <p>English text: Calculate the value of X when x² + 2x + 1 = 0.</p>
     `,
 
@@ -189,8 +206,7 @@ function App() {
     },
   });
 
-  const { selectedFont, selectedFontSize, saveSelection, applyFont, applyFontSize } =
-    useFontMarks(editor);
+  const { selectedFontSize, saveSelection, applyFontSize } = useFontMarks(editor);
 
   const handleAlignment = useCallback(
     (alignment: "left" | "center" | "right" | "justify") => {
@@ -267,58 +283,6 @@ function App() {
     [editor, mathUpdateCallback]
   );
 
-  const handleConverterInsert = useCallback(
-    (kapText: string, font: KapFont) => {
-      editor
-        ?.chain()
-        .focus()
-        .insertContent({
-          type: "text",
-          text: kapText,
-          marks: [{ type: "fontFamily", attrs: { fontFamily: font } }],
-        })
-        .run();
-    },
-    [editor]
-  );
-
-  const handleConverterReplaceSelection = useCallback(
-    (kapText: string, font: KapFont) => {
-      if (!editor) return;
-      const { from, to } = editor.state.selection;
-      const startMarks =
-        editor.state.doc.resolve(from).marks() ??
-        editor.state.storedMarks ??
-        [];
-      const preservedMarks = startMarks
-        .filter((m) => m.type.name !== "fontFamily")
-        .map((m) => ({ type: m.type.name, attrs: m.attrs }));
-
-      editor
-        .chain()
-        .focus()
-        .insertContentAt(
-          { from, to },
-          {
-            type: "text",
-            text: kapText,
-            marks: [
-              ...preservedMarks,
-              { type: "fontFamily", attrs: { fontFamily: font } },
-            ],
-          }
-        )
-        .run();
-    },
-    [editor]
-  );
-
-  const handleOpenKapImporter = useCallback(() => {
-    showToast(
-      "KAP → Unicode Importer is not available in web mode. Run the desktop version for this tool."
-    );
-  }, [showToast]);
-
   if (!editor) {
     return null;
   }
@@ -351,8 +315,6 @@ function App() {
           onSaveAs={handleSaveAs}
           onExamSettings={() => setIsExamSettingsOpen(true)}
           onPrintPreview={() => setIsPrintPreviewOpen(true)}
-          onOpenAnalyzer={() => setIsAnalyzerOpen(true)}
-          onOpenKapImporter={handleOpenKapImporter}
           recentFiles={recentFiles}
           isRecentOpen={isRecentOpen}
           setIsRecentOpen={setIsRecentOpen}
@@ -360,15 +322,12 @@ function App() {
 
         <EditorToolbar
           editor={editor}
-          selectedFont={selectedFont}
           selectedFontSize={selectedFontSize}
           saveSelection={saveSelection}
-          applyFont={applyFont}
           applyFontSize={applyFontSize}
           onAlignment={handleAlignment}
           onInsertImage={() => fileInputRef.current?.click()}
           onInsertEquation={openNewMathModal}
-          onOpenConverter={() => setIsConverterOpen(true)}
         />
 
         <EditorContent editor={editor} />
@@ -383,13 +342,6 @@ function App() {
           onSubmit={handleMathSubmit}
         />
       )}
-
-      <GujaratiConverterModal
-        isOpen={isConverterOpen}
-        onClose={() => setIsConverterOpen(false)}
-        onInsert={handleConverterInsert}
-        onReplaceSelection={handleConverterReplaceSelection}
-      />
 
       {isExamSettingsOpen && (
         <ExamSettingsModal
@@ -406,27 +358,6 @@ function App() {
         documentJSON={editor?.getJSON() || {}}
         documentTitle={docTitle}
         metadata={examMetadata}
-      />
-
-      <KapAnalyzerReview
-        isOpen={isAnalyzerOpen}
-        onClose={() => setIsAnalyzerOpen(false)}
-        providerStatus={kapAnalyzer.status}
-        selectedFont={kapAnalyzer.selectedFont}
-        onFontChange={kapAnalyzer.setSelectedFont}
-        onTestConnection={kapAnalyzer.testConnection}
-        onAnalyzeFont={kapAnalyzer.analyzeFont}
-        onCancelAnalysis={kapAnalyzer.cancelAnalysis}
-        candidates={kapAnalyzer.candidates}
-        sequenceCandidates={kapAnalyzer.sequenceCandidates}
-        progress={kapAnalyzer.progress}
-        isAnalyzing={kapAnalyzer.isAnalyzing}
-        error={kapAnalyzer.error}
-        onVerifyCandidate={kapAnalyzer.verifyCandidate}
-        onRejectCandidate={kapAnalyzer.rejectCandidate}
-        onEditCandidate={kapAnalyzer.editCandidate}
-        onVerifySequence={kapAnalyzer.verifySequence}
-        onExportVerified={kapAnalyzer.exportVerified}
       />
     </div>
   );

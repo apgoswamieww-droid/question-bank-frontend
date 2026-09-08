@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import { Plus, Globe } from "lucide-react";
+import { Plus, Globe, Pencil, Trash2 } from "lucide-react";
 import { api, ApiError, type Language } from "../api/client";
 import { PageHeader } from "./components/PageHeader";
 import { Button } from "./components/Button";
 import { DataTable, type DataTableColumn } from "./components/DataTable";
 import { MasterDataModal, type MasterField } from "./components/MasterDataModal";
+import { ConfirmDialog } from "./components/ConfirmDialog";
 import { TableSkeleton } from "./components/Skeleton";
 
 const fields: MasterField[] = [
@@ -18,6 +19,8 @@ export default function LanguagesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState<Language | null>(null);
+  const [deleting, setDeleting] = useState<Language | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -31,12 +34,29 @@ export default function LanguagesPage() {
     }
   }, []);
 
+  // Deliberate initial-load pattern (repeated on user actions via `load`).
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load(); }, [load]);
 
   const handleSubmit = async (data: Record<string, unknown>) => {
-    await api.languages.create(data as { code: string; name: string; native_name?: string });
+    if (editing) {
+      await api.languages.update(editing.id, data as Partial<Language>);
+    } else {
+      await api.languages.create(data as { code: string; name: string; native_name?: string });
+    }
     await load();
+  };
+
+  const handleDelete = async () => {
+    if (!deleting) return;
+    try {
+      await api.languages.delete(deleting.id);
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to delete.");
+    } finally {
+      setDeleting(null);
+    }
   };
 
   const columns: DataTableColumn<Language>[] = [
@@ -64,6 +84,45 @@ export default function LanguagesPage() {
         <code className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-mono text-slate-600">{l.code}</code>
       ),
     },
+    {
+      key: "active",
+      header: "Status",
+      sortValue: (l) => (l.active ? "active" : "inactive"),
+      render: (l) => (
+        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${
+          l.active ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-slate-100 text-slate-500 ring-slate-200"
+        }`}>
+          <span className={`h-1.5 w-1.5 rounded-full ${l.active ? "bg-emerald-500" : "bg-slate-400"}`} />
+          {l.active ? "Active" : "Inactive"}
+        </span>
+      ),
+    },
+    {
+      key: "actions",
+      header: "",
+      className: "text-right",
+      headerClassName: "w-px text-right",
+      render: (l) => (
+        <div className="flex justify-end gap-0.5">
+          <button
+            type="button"
+            onClick={() => { setEditing(l); setModalOpen(true); }}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-primary"
+            title="Edit"
+          >
+            <Pencil className="h-4 w-4" aria-hidden />
+          </button>
+          <button
+            type="button"
+            onClick={() => setDeleting(l)}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+            title="Delete"
+          >
+            <Trash2 className="h-4 w-4" aria-hidden />
+          </button>
+        </div>
+      ),
+    },
   ];
 
   return (
@@ -72,7 +131,7 @@ export default function LanguagesPage() {
         title="Languages"
         subtitle="Manage question languages"
         actions={
-          <Button onClick={() => setModalOpen(true)}>
+          <Button onClick={() => { setEditing(null); setModalOpen(true); }}>
             <Plus className="h-4 w-4" aria-hidden /> Add Language
           </Button>
         }
@@ -83,7 +142,7 @@ export default function LanguagesPage() {
       )}
 
       {loading ? (
-        <TableSkeleton rows={5} cols={2} />
+        <TableSkeleton rows={5} cols={4} />
       ) : (
         <DataTable
           columns={columns}
@@ -94,7 +153,7 @@ export default function LanguagesPage() {
           emptyTitle="No languages"
           emptyDescription="Add a language to get started."
           emptyAction={
-            <Button onClick={() => setModalOpen(true)}>
+            <Button onClick={() => { setEditing(null); setModalOpen(true); }}>
               <Plus className="h-4 w-4" aria-hidden /> Add Language
             </Button>
           }
@@ -104,11 +163,23 @@ export default function LanguagesPage() {
 
       <MasterDataModal
         open={modalOpen}
-        title="Add Language"
+        title={editing ? "Edit Language" : "Add Language"}
         fields={fields}
-        onClose={() => setModalOpen(false)}
+        initial={editing}
+        onClose={() => { setModalOpen(false); setEditing(null); }}
         onSubmit={handleSubmit}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deleting)}
+        title="Delete Language"
+        message={`Delete "${deleting?.name}"? This cannot be undone.`}
+        confirmLabel="Delete"
+        danger
+        onConfirm={handleDelete}
+        onCancel={() => setDeleting(null)}
       />
     </div>
   );
 }
+
