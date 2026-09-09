@@ -1,32 +1,23 @@
-# Question Bank
-opencode -s ses_fc8c650d3ffe5tz4KT3NHna4jd
-opencode -s ses_fc8c650d3ffe5tz4KT3NHna4jd
-Desktop application for creating, editing, and exporting exam question papers. Built with React, TipTap, and Electron. Targets Indian educational institutions with support for MCQ-based exams and Gujarati language input.
+# Question Bank — Frontend
 
-## Features
+Web application for creating question papers and managing a question bank.
+Built with React 19, TypeScript, Vite, TipTap, and Tailwind CSS.
 
-- **MCQ Question Blocks** — Structured blocks with question, 4 options (A-D), answer, and marks
-- **Rich Text Editor** — Bold, italic, underline, alignment, lists, font size
-- **A4 Print Layout** — Auto-pagination, exam headers, section dividers, page numbering
-- **PDF Export** — Via Electron's printToPDF
-- **Gujarati Support** — Direct Unicode Gujarati text input
-- **Math Equations** — KaTeX/LaTeX editor with categorized formula library
-- **Image Support** — Paste, drop, or file insert with resize and alignment
-- **Exam Settings** — Configure institute name, title, subject, sections, logo, instructions
-- **Auto-Save** — Every 30 seconds with status indicator
-- **Recent Files** — Quick access to recently opened documents
-- **Keyboard Shortcuts** — Ctrl+N/O/S/Shift+S
+This is the **frontend** repo. The API server lives in a separate repo
+(`question-bank-backend`) and is deployed independently.
 
-## Tech Stack
+## Stack
 
-| Layer | Technology |
-|-------|------------|
-| Frontend | React 19, TypeScript 6, Vite 8 |
-| Editor | TipTap 3 (ProseMirror) |
-| Math | KaTeX 0.18 |
-| Desktop | Electron 43 |
-| Testing | Vitest, @testing-library/react |
-| Linting | ESLint 10, typescript-eslint |
+| Layer          | Technology                              |
+|----------------|-----------------------------------------|
+| Framework      | React 19, TypeScript 6, Vite 8          |
+| Editor         | TipTap 3 (ProseMirror)                  |
+| Math           | KaTeX 0.18 (LaTeX formula library)      |
+| Routing        | react-router 7                          |
+| Notification   | Sonner toasts                           |
+| Styling        | Tailwind CSS 4                          |
+| Testing        | Vitest, @testing-library/react          |
+| Linting        | ESLint 10, typescript-eslint            |
 
 ## Getting Started
 
@@ -34,6 +25,7 @@ Desktop application for creating, editing, and exporting exam question papers. B
 
 - Node.js 22+
 - npm
+- The backend repo running on `http://localhost:4000` (or a deployed API)
 
 ### Setup
 
@@ -47,62 +39,59 @@ npm install
 npm run dev
 ```
 
-Starts Vite dev server and Electron simultaneously with hot reload.
+Serves the app at `http://localhost:5173`. The Vite dev server proxies `/api/*`
+to `http://localhost:4000`, so the backend must be running.
+
+To run against a remote API instead, create `.env.local` with:
+
+```bash
+VITE_API_URL=https://<backend-url>
+```
 
 ### Scripts
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start dev server + Electron |
-| `npm run build` | Production build |
-| `npm run build:win` | Build Windows distributable |
-| `npm test` | Run tests |
-| `npm run test:watch` | Run tests in watch mode |
-| `npm run lint` | Run ESLint |
-| `npm run typecheck` | TypeScript type-check |
+| Command              | Description                        |
+|----------------------|------------------------------------|
+| `npm run dev`        | Start Vite dev server (:5173)      |
+| `npm run build`      | Production build to `dist/`        |
+| `npm run preview`    | Preview the production build       |
+| `npm test`           | Run tests                          |
+| `npm run test:watch` | Run tests in watch mode            |
+| `npm run lint`       | Run ESLint                         |
+| `npm run typecheck`  | TypeScript type-check              |
+
+## Features
+
+- **Question paper editor** — rich text (bold, italic, lists, alignment), A4 print
+  layout, PDF export, Gujarati text input, math equations, and image support
+- **Admin panel** (`/admin`) — authentication, users & roles/permissions, master
+  data (standards, subjects, chapters, topics, exam types, languages, schools),
+  question bank CRUD with edit history & usage analytics, and test management
 
 ## Project Structure
 
 ```
-question-bank/
-├── electron/              # Electron main process
-│   ├── main.cjs           # Window, IPC, file dialogs, PDF export
-│   └── preload.cjs        # Context bridge
-├── src/
-│   ├── App.tsx            # Root component (composition root)
-│   ├── extensions/        # Custom TipTap extensions
-│   ├── hooks/             # Custom React hooks
-│   ├── components/        # UI components
-│   ├── print/             # Print/PDF layout engine
-│   ├── types/             # TypeScript types
-│   ├── utils/             # Utilities
-│   └── test/              # Test setup
-└── doc/                   # Development logs
+src/
+  admin/          # Admin panel (auth, users, roles, questions, tests, analytics)
+  api/            # API client (single touchpoint, reads VITE_API_URL)
+  components/     # Shared UI components
+  web/            # Question paper editor UI
+  print/          # Print/PDF layout engine
+  hooks/          # Custom React hooks
+  extensions/     # Custom TipTap extensions
+  utils/          # Utilities (incl. Gujarati/KAP helpers)
+  test/           # Test setup
 ```
 
-## Custom File Format
+## Deploy (Vercel)
 
-Documents use `.qbank` — a JSON format containing:
+- Framework preset: Vite (auto-detected via `vercel.json`)
+- Build: `npm run build` — output `dist/`
+- Set the build-time env var `VITE_API_URL=https://<backend>.onrender.com`
+  (it is inlined by Vite at build time)
+- SPA rewrite configured in `vercel.json` so `/admin/*` deep links work
 
-```json
-{
-  "format": "question-bank",
-  "version": 2,
-  "title": "Exam Title",
-  "metadata": { "instituteName": "...", "sections": [...] },
-  "content": { /* TipTap JSON document */ }
-}
-```
+## Related
 
-## Testing
-
-```bash
-npm test           # Single run
-npm run test:watch # Watch mode
-```
-
-Tests cover document migration, editor utilities, and validation logic.
-
-## License
-
-See [LICENSE](LICENSE) for details.
+- Backend repo (Express + Supabase API)
+- Supabase schema: see `migrations/` in the backend repo

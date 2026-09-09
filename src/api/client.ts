@@ -2,6 +2,11 @@ const TOKEN_KEY = "qb.admin.token";
 const USER_KEY = "qb.admin.user";
 const PERMS_KEY = "qb.admin.permissions";
 
+// Base URL for the Question Bank API. In dev this is empty so requests go to
+// the Vite proxy (/api -> localhost:4000). In production it points to the
+// deployed backend (e.g. https://<backend>.onrender.com).
+const API_BASE_URL = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
+
 export type UserRole = "super_admin" | "teacher" | "student" | (string & {});
 
 export interface AdminUser {
@@ -125,11 +130,11 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     if (token) headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`/api${path}`, {
+  const response = await fetch(`${API_BASE_URL}/api${path}`, {
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
-    credentials: "same-origin",
+    credentials: "omit",
   });
 
   if (response.status === 401 && auth) {
