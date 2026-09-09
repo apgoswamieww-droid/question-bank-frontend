@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import {
   ShieldCheck,
   Plus,
@@ -21,8 +22,6 @@ import {
   LayoutGrid,
   Table as TableIcon,
   X,
-  AlertCircle,
-  CheckCircle2,
 } from "lucide-react";
 import {
   api,
@@ -107,7 +106,6 @@ export function RolesPermissionsPage() {
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<"detail" | "matrix">("detail");
-  const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
   // Modals
   const [isCreateRoleOpen, setIsCreateRoleOpen] = useState(false);
@@ -132,10 +130,7 @@ export function RolesPermissionsPage() {
         setActiveRoleCode(rolesRes.roles[0].code);
       }
     } catch (err) {
-      setMessage({
-        text: err instanceof ApiError ? err.message : "Failed to load roles and permissions.",
-        type: "error",
-      });
+      toast.error(err instanceof ApiError ? err.message : "Failed to load roles and permissions.");
     } finally {
       setLoading(false);
     }
@@ -215,7 +210,6 @@ export function RolesPermissionsPage() {
   const savePermissions = async () => {
     if (!activeRoleCode) return;
     setSaving(true);
-    setMessage(null);
     try {
       const permsToSave = isSuperAdmin
         ? permissions.map((p) => p.code)
@@ -224,13 +218,9 @@ export function RolesPermissionsPage() {
       const res = await api.admin.setRolePermissions(activeRoleCode, permsToSave);
       setMatrix((prev) => ({ ...prev, [activeRoleCode]: res.permissions }));
       setDraft((prev) => ({ ...prev, [activeRoleCode]: res.permissions }));
-      setMessage({ text: `Permissions saved successfully for ${activeRole?.name || activeRoleCode}.`, type: "success" });
-      setTimeout(() => setMessage(null), 3000);
+      toast.success(`Permissions saved successfully for ${activeRole?.name || activeRoleCode}.`);
     } catch (err) {
-      setMessage({
-        text: err instanceof ApiError ? err.message : "Failed to save permissions.",
-        type: "error",
-      });
+      toast.error(err instanceof ApiError ? err.message : "Failed to save permissions.");
     } finally {
       setSaving(false);
     }
@@ -240,7 +230,6 @@ export function RolesPermissionsPage() {
     e.preventDefault();
     if (!newRole.name.trim() || !newRole.code.trim()) return;
     setCreatingRole(true);
-    setMessage(null);
     try {
       const cleanCode = newRole.code.trim().toLowerCase().replace(/[^a-z0-9_]/g, "_");
       const res = await api.admin.createRole({
@@ -261,13 +250,9 @@ export function RolesPermissionsPage() {
       setActiveRoleCode(cleanCode);
       setIsCreateRoleOpen(false);
       setNewRole({ name: "", code: "", description: "", cloneFrom: "" });
-      setMessage({ text: `Role "${res.role.name}" created successfully!`, type: "success" });
-      setTimeout(() => setMessage(null), 3000);
+      toast.success(`Role "${res.role.name}" created successfully!`);
     } catch (err) {
-      setMessage({
-        text: err instanceof ApiError ? err.message : "Failed to create role.",
-        type: "error",
-      });
+      toast.error(err instanceof ApiError ? err.message : "Failed to create role.");
     } finally {
       setCreatingRole(false);
     }
@@ -281,13 +266,9 @@ export function RolesPermissionsPage() {
       if (activeRoleCode === deletingRole.code) {
         setActiveRoleCode("super_admin");
       }
-      setMessage({ text: `Role "${deletingRole.name}" deleted.`, type: "success" });
-      setTimeout(() => setMessage(null), 3000);
+      toast.success(`Role "${deletingRole.name}" deleted.`);
     } catch (err) {
-      setMessage({
-        text: err instanceof ApiError ? err.message : "Failed to delete role.",
-        type: "error",
-      });
+      toast.error(err instanceof ApiError ? err.message : "Failed to delete role.");
     } finally {
       setDeletingRole(null);
     }
@@ -342,25 +323,6 @@ export function RolesPermissionsPage() {
           </div>
         }
       />
-
-      {/* Status Notification */}
-      {message && (
-        <div
-          role="alert"
-          className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-sm transition shadow-sm ${
-            message.type === "error"
-              ? "border-red-200 bg-red-50 text-red-800"
-              : "border-emerald-200 bg-emerald-50 text-emerald-800"
-          }`}
-        >
-          {message.type === "error" ? (
-            <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />
-          ) : (
-            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
-          )}
-          <span>{message.text}</span>
-        </div>
-      )}
 
       {/* VIEW MODE 1: MODULE-WISE DETAIL VIEW */}
       {viewMode === "detail" && (

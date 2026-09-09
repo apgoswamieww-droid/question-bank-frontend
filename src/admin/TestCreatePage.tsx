@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -91,7 +92,6 @@ export default function TestCreatePage() {
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   // master data
   const [standards, setStandards] = useState<Standard[]>([]);
@@ -166,7 +166,7 @@ export default function TestCreatePage() {
           }));
         }
       } catch (err) {
-        setError(err instanceof ApiError ? err.message : "Failed to load test.");
+        toast.error(err instanceof ApiError ? err.message : "Failed to load test.");
       } finally {
         setLoading(false);
       }
@@ -259,7 +259,6 @@ export default function TestCreatePage() {
 
   const save = async (targetStatus: "draft" | "published") => {
     setSaving(targetStatus);
-    setError(null);
     try {
       const payload = {
         title: title.trim(),
@@ -283,9 +282,10 @@ export default function TestCreatePage() {
       } else {
         await api.tests.create(payload);
       }
+      toast.success(editId ? "Test updated." : "Test created.");
       navigate("/admin/tests");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to save test.");
+      toast.error(err instanceof ApiError ? err.message : "Failed to save test.");
     } finally {
       setSaving(null);
     }
@@ -308,10 +308,6 @@ export default function TestCreatePage() {
           </Button>
         }
       />
-
-      {error && (
-        <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
-      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* ---- Left: test metadata + settings ---- */}

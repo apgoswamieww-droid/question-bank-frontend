@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { ArrowLeft, CheckCircle2, Loader2, Mail, ShieldCheck, TriangleAlert } from "lucide-react";
+import { useCallback, useState, type FormEvent } from "react";
+import { toast } from "sonner";
+import { ArrowLeft, Loader2, Mail, ShieldCheck } from "lucide-react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
 
@@ -13,25 +14,14 @@ function validateEmail(v: string) {
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
 
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const touch = useCallback((field: string) => setTouched((t) => ({ ...t, [field]: true })), []);
 
   const emailError = touched.email ? validateEmail(email) : undefined;
 
-  // Auto-dismiss success toast after 8 seconds
-  useEffect(() => {
-    if (!success) return;
-    const timer = window.setTimeout(() => setSuccess(false), 8000);
-    return () => window.clearTimeout(timer);
-  }, [success]);
-
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setError(null);
-    setSuccess(false);
     setTouched({ email: true });
     const eErr = validateEmail(email);
     if (eErr) return;
@@ -39,10 +29,16 @@ export default function ForgotPasswordPage() {
     try {
       await api.forgotPassword(email.trim());
       // Always show success to prevent user enumeration
-      setSuccess(true);
+      toast.success("Reset link sent!", {
+        description: `If an account exists for ${email.trim()}, we've sent a password reset link. Check your inbox and spam folder.`,
+        duration: 8000,
+      });
     } catch {
       // Even on error, show success to prevent user enumeration
-      setSuccess(true);
+      toast.success("Reset link sent!", {
+        description: `If an account exists for ${email.trim()}, we've sent a password reset link. Check your inbox and spam folder.`,
+        duration: 8000,
+      });
     } finally {
       setSubmitting(false);
     }
@@ -74,46 +70,6 @@ export default function ForgotPasswordPage() {
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/80 sm:p-8">
-          {/* Success toast */}
-          <div
-            role="status"
-            aria-live="polite"
-            className={`mb-5 grid transition-all duration-200 ease-out ${
-              success ? "grid-rows-[1fr] opacity-100" : "pointer-events-none grid-rows-[0fr] opacity-0"
-            }`}
-          >
-            <div className="overflow-hidden">
-              <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" aria-hidden />
-                <div>
-                  <p className="font-medium">Reset link sent!</p>
-                  <p className="mt-0.5 text-xs text-emerald-600">
-                    If an account exists for <strong>{email}</strong>, we've sent a password reset link.
-                    Check your inbox and spam folder.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Error toast */}
-          <div
-            role="alert"
-            aria-live="polite"
-            className={`mb-5 grid transition-all duration-200 ease-out ${
-              error ? "grid-rows-[1fr] opacity-100" : "pointer-events-none grid-rows-[0fr] opacity-0"
-            }`}
-          >
-            <div className="overflow-hidden">
-              {error && (
-                <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-red-500" aria-hidden />
-                  <span>{error}</span>
-                </div>
-              )}
-            </div>
-          </div>
-
           <form onSubmit={handleSubmit} noValidate className="space-y-5">
             <div>
               <label htmlFor="forgot-email" className="mb-1.5 block text-sm font-medium text-slate-800">

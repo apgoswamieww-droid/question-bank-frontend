@@ -1,4 +1,5 @@
 import { useCallback, useState, type FormEvent } from "react";
+import { toast } from "sonner";
 import { X } from "lucide-react";
 import type { AdminUser, UserRole } from "../../api/client";
 import { ROLE_ORDER } from "./roleMeta";
@@ -86,7 +87,6 @@ function Form({ mode, initial, roleDefault, onClose, onSubmit }: FormProps) {
   const [hireDate, setHireDate] = useState(initial?.hireDate ?? "");
   const [subject, setSubject] = useState(initial?.subject ?? "");
   const [qualification, setQualification] = useState(initial?.qualification ?? "");
-  const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   // Live validation with touched tracking
@@ -99,7 +99,6 @@ function Form({ mode, initial, roleDefault, onClose, onSubmit }: FormProps) {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setError(null);
     setTouched({ name: true, email: true, password: true });
     const nErr = validateName(name);
     const eErr = validateEmail(email);
@@ -123,7 +122,7 @@ function Form({ mode, initial, roleDefault, onClose, onSubmit }: FormProps) {
       });
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
+      toast.error(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setSubmitting(false);
     }
@@ -258,12 +257,6 @@ function Form({ mode, initial, roleDefault, onClose, onSubmit }: FormProps) {
               </div>
             </div>
           </div>
-        )}
-
-        {error && (
-          <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {error}
-          </p>
         )}
 
         <div className="flex justify-end gap-2 pt-1">

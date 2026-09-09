@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import {
   BookOpenCheck,
@@ -151,8 +152,6 @@ export default function QuestionBanksPage() {
   const [examTypes, setExamTypes] = useState<ExamType[]>([]);
   const [languages, setLanguages] = useState<Language[]>([]);
   const [levels, setLevels] = useState<QuestionLevel[]>([]);
-  const [masterError, setMasterError] = useState<string | null>(null);
-
   // ---- filter state (draft vs applied) ----
   const [draft, setDraft] = useState<QuestionFilters>(EMPTY_FILTERS);
   const [applied, setApplied] = useState<QuestionFilters>(EMPTY_FILTERS);
@@ -170,8 +169,6 @@ export default function QuestionBanksPage() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [viewQuestionId, setViewQuestionId] = useState<string | null>(null);
 
   // ---- presets ----
@@ -201,7 +198,7 @@ export default function QuestionBanksPage() {
         setLanguages(lang.languages);
         setLevels(lvl.levels);
       })
-      .catch((err) => setMasterError(err instanceof ApiError ? err.message : "Failed to load filter options."));
+      .catch((err) => toast.error(err instanceof ApiError ? err.message : "Failed to load filter options."));
   }, []);
 
   // Cascading chapters / topics
@@ -247,7 +244,6 @@ export default function QuestionBanksPage() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
-    setError(null);
     api.questions
       .list({
         ...applied,
@@ -259,7 +255,7 @@ export default function QuestionBanksPage() {
         setQuestions(res.questions);
         setTotal(res.total);
       })
-      .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load questions."))
+      .catch((err) => toast.error(err instanceof ApiError ? err.message : "Failed to load questions."))
       .finally(() => setLoading(false));
   }, [applied, page]);
 
@@ -362,12 +358,10 @@ export default function QuestionBanksPage() {
   const duplicateQuestion = async (q: Question) => {
     try {
       await api.questions.duplicate(q.id);
-      setSuccess("Question duplicated.");
-      setTimeout(() => setSuccess(null), 2000);
+      toast.success("Question duplicated.");
       refreshResults();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to duplicate question.");
-      setTimeout(() => setError(null), 2500);
+      toast.error(err instanceof ApiError ? err.message : "Failed to duplicate question.");
     }
   };
 
@@ -458,22 +452,6 @@ export default function QuestionBanksPage() {
           )}
         </div>
       </div>
-
-      {masterError && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {masterError}
-        </div>
-      )}
-      {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </div>
-      )}
-      {success && (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-          {success}
-        </div>
-      )}
 
       {/* Filters */}
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">

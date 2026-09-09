@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Plus, ClipboardList, Pencil, Trash2 } from "lucide-react";
 import { api, ApiError, type ExamType } from "../api/client";
 import { PageHeader } from "./components/PageHeader";
@@ -30,7 +31,6 @@ const fields: MasterField[] = [
 export default function ExamTypesPage() {
   const [examTypes, setExamTypes] = useState<ExamType[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<ExamType | null>(null);
   const [deleting, setDeleting] = useState<ExamType | null>(null);
@@ -39,9 +39,8 @@ export default function ExamTypesPage() {
     try {
       const res = await api.examTypes.list();
       setExamTypes(res.examTypes);
-      setError(null);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to load exam types.");
+      toast.error(err instanceof ApiError ? err.message : "Failed to load exam types.");
     } finally {
       setLoading(false);
     }
@@ -66,7 +65,7 @@ export default function ExamTypesPage() {
       await api.examTypes.delete(deleting.id);
       await load();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to delete.");
+      toast.error(err instanceof ApiError ? err.message : "Failed to delete.");
     } finally {
       setDeleting(null);
     }
@@ -154,10 +153,6 @@ export default function ExamTypesPage() {
           </Button>
         }
       />
-
-      {error && (
-        <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
-      )}
 
       {loading ? (
         <TableSkeleton rows={5} cols={5} />

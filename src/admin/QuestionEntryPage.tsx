@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, BookOpen, BookOpenCheck, ChevronDown, Eye, History, ListFilter, Loader2, Plus, Save, SaveAll, Trash2, X } from "lucide-react";
 import {
@@ -107,8 +108,6 @@ export default function QuestionEntryPage() {
   const [examTypes, setExamTypes] = useState<ExamType[]>([]);
   const [languages, setLanguages] = useState<Language[]>([]);
   const [loadingMaster, setLoadingMaster] = useState(true);
-  const [masterError, setMasterError] = useState<string | null>(null);
-
   // Selection
   const [standardId, setStandardId] = useState("");
   const [subjectId, setSubjectId] = useState("");
@@ -123,7 +122,6 @@ export default function QuestionEntryPage() {
   // Draft editor
   const [draft, setDraft] = useState<Draft>(emptyDraft());
   const [saving, setSaving] = useState<"draft" | "published" | null>(null);
-  const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [viewQuestionId, setViewQuestionId] = useState<string | null>(null);
 
@@ -145,7 +143,7 @@ export default function QuestionEntryPage() {
         setExamTypes(et.examTypes);
         setLanguages(lang.languages);
       })
-      .catch((err) => setMasterError(err instanceof ApiError ? err.message : "Failed to load master data."))
+      .catch((err) => toast.error(err instanceof ApiError ? err.message : "Failed to load master data."))
       .finally(() => setLoadingMaster(false));
   }, []);
 
@@ -240,7 +238,6 @@ export default function QuestionEntryPage() {
   const newQuestion = () => {
     setDraft(emptyDraft());
     setSelectedIdx(-1);
-    setSaveNotice(null);
   };
 
   // ---- Load question for editing when navigated with ?id= ----
@@ -258,7 +255,7 @@ export default function QuestionEntryPage() {
         setDraft((d) => ({ ...d, payload: (res.payload as Record<string, unknown>) ?? {} }));
       })
       .catch((err) =>
-        setMasterError(err instanceof ApiError ? err.message : "Failed to load question for editing.")
+        toast.error(err instanceof ApiError ? err.message : "Failed to load question for editing.")
       );
   }, [editId]);
 
@@ -294,11 +291,10 @@ export default function QuestionEntryPage() {
   const handleSave = async (status: "draft" | "published") => {
     const contentHtml = (draft.content as { html?: string })?.html ?? "";
     if (!contentHtml.trim()) {
-      setSaveNotice("Question content is required.");
+      toast.error("Question content is required.");
       return;
     }
     setSaving(status);
-    setSaveNotice(null);
     const base = {
       standard_id: standardId || null,
       subject_id: subjectId || null,
@@ -338,14 +334,14 @@ export default function QuestionEntryPage() {
       if (status === "published") {
         setSelectedIdx(questions.findIndex((q) => q.id === res.question.id));
       }
-      setSaveNotice("Saved.");
+      toast.success("Saved.");
       setDraft((d) => ({ ...d, id: res.question.id }));
       // refresh list
       api.questions
         .list({ standard_id: standardId || undefined, subject_id: subjectId || undefined, chapter_id: chapterId || undefined, topic_id: topicId || undefined, limit: 200 })
         .then((r) => setQuestions(r.questions));
     } catch (err) {
-      setSaveNotice(err instanceof ApiError ? err.message : "Failed to save question.");
+      toast.error(err instanceof ApiError ? err.message : "Failed to save question.");
     } finally {
       setSaving(null);
     }
@@ -382,10 +378,6 @@ export default function QuestionEntryPage() {
           </Button>
         </div>
       </div>
-
-      {masterError && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{masterError}</div>
-      )}
 
       <div className="space-y-4">
         <HierarchyBar
@@ -579,18 +571,6 @@ export default function QuestionEntryPage() {
                   />
                 </Panel>
 
-                {saveNotice && (
-                  <div
-                    className={`rounded-xl border px-4 py-2.5 text-sm ${
-                      saveNotice.startsWith("Failed") || saveNotice.endsWith("required.")
-                        ? "border-red-200 bg-red-50 text-red-700"
-                        : "border-emerald-200 bg-emerald-50 text-emerald-700"
-                    }`}
-                  >
-                    {saveNotice}
-                  </div>
-                )}
-
                 {/* Save actions */}
                 <div className="flex flex-wrap justify-end gap-2 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                   <Button variant="secondary" onClick={() => { setActiveTab("review"); }} size="sm">
@@ -679,18 +659,6 @@ export default function QuestionEntryPage() {
                     )}
                   </div>
                 </Panel>
-
-                {saveNotice && (
-                  <div
-                    className={`rounded-xl border px-4 py-2.5 text-sm ${
-                      saveNotice.startsWith("Failed") || saveNotice.endsWith("required.")
-                        ? "border-red-200 bg-red-50 text-red-700"
-                        : "border-emerald-200 bg-emerald-50 text-emerald-700"
-                    }`}
-                  >
-                    {saveNotice}
-                  </div>
-                )}
 
                 <div className="flex flex-wrap justify-end gap-2 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                   <Button variant="secondary" onClick={() => setActiveTab("question")} size="sm">← Back</Button>

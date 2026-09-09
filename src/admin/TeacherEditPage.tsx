@@ -1,25 +1,34 @@
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, CheckCircle2, Mail, Pencil, UserRound } from "lucide-react";
+import { ArrowLeft, Pencil, UserRound } from "lucide-react";
 import { api, ApiError, type AdminUser } from "../api/client";
-import { useAdminAuth } from "../context/useAdminAuth";
 import { TeacherForm } from "./components/TeacherForm";
-import { Button } from "./components/Button";
 import { FormSkeleton } from "./components/Skeleton";
 
 export default function TeacherEditPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAdminAuth();
   const [teacher, setTeacher] = useState<AdminUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [saved, setSaved] = useState(false);
 
   const created = (location.state as { created?: boolean } | null)?.created;
   const emailStatus = (location.state as { emailStatus?: { ok: boolean; error?: string } | null } | null)?.emailStatus;
+
+  useEffect(() => {
+    if (created) {
+      if (emailStatus && !emailStatus.ok) {
+        toast.success("Teacher registered successfully.", {
+          description: `Welcome email not sent: ${emailStatus.error}`,
+        });
+      } else {
+        toast.success("Teacher registered successfully.");
+      }
+    }
+  }, [created, emailStatus]);
 
   useEffect(() => {
     let active = true;
@@ -31,12 +40,18 @@ export default function TeacherEditPage() {
           if (found && found.role === "teacher") {
             setTeacher(found);
           } else {
-            setError(found ? "This user is not a teacher." : "Teacher not found.");
+            const msg = found ? "This user is not a teacher." : "Teacher not found.";
+            setError(msg);
+            toast.error(msg);
           }
         }
       })
       .catch((err) => {
-        if (active) setError(err instanceof ApiError ? err.message : "Failed to load teacher.");
+        if (active) {
+          const msg = err instanceof ApiError ? err.message : "Failed to load teacher.";
+          setError(msg);
+          toast.error(msg);
+        }
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -60,8 +75,6 @@ export default function TeacherEditPage() {
   }) => {
     if (!teacher) return;
     setSubmitting(true);
-    setError(null);
-    setSaved(false);
     try {
       const res = await api.admin.updateUser(teacher.id, {
         name: data.name,
@@ -76,10 +89,9 @@ export default function TeacherEditPage() {
         qualification: data.qualification || undefined,
       });
       setTeacher(res.user);
-      setSaved(true);
-      window.setTimeout(() => setSaved(false), 3000);
+      toast.success("Changes saved.");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to save changes.");
+      toast.error(err instanceof ApiError ? err.message : "Failed to save changes.");
     } finally {
       setSubmitting(false);
     }
@@ -125,31 +137,6 @@ export default function TeacherEditPage() {
         </button>
               </div>
 
-      {(created || emailStatus) && (
-        <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4">
-          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" aria-hidden />
-          <div className="text-sm text-emerald-800">
-            <p className="font-semibold">Teacher registered successfully.</p>
-            {emailStatus && !emailStatus.ok && (
-              <p className="mt-1 flex items-center gap-1.5 text-red-700">
-                <Mail className="h-4 w-4" aria-hidden /> Email not sent: {emailStatus.error}
-              </p>
-            )}
-            {emailStatus?.ok && (
-              <p className="mt-1 flex items-center gap-1.5">
-                <Mail className="h-4 w-4" aria-hidden /> Welcome email dispatched to {teacher?.email}
-              </p>
-            )}
-          </div>
-        </div>
-      )}
-
-      {saved && (
-        <div className="flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm text-emerald-800">
-          <CheckCircle2 className="h-4 w-4" aria-hidden /> Changes saved.
-        </div>
-      )}
-
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-white">
           <Pencil className="h-5 w-5" aria-hidden />
@@ -168,7 +155,7 @@ export default function TeacherEditPage() {
         </div>
         <div className="p-6">
           {teacher ? (
-            <TeacherForm mode="edit" initial={teacher} submitting={submitting} error={error} onSubmit={handleSubmit} />
+            <TeacherForm mode="edit" initial={teacher} submitting={submitting} onSubmit={handleSubmit} />
           ) : null}
         </div>
       </div>

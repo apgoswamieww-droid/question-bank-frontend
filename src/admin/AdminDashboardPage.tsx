@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Link } from "react-router-dom";
-import { BookOpenCheck, GraduationCap, Users, UserRound } from "lucide-react";
+import { BookOpenCheck, GraduationCap, UserRound } from "lucide-react";
 import { api, ApiError } from "../api/client";
 import { useAdminAuth, useCan, PERMISSIONS } from "../context/useAdminAuth";
 import { ROLE_META } from "./components/roleMeta";
@@ -17,7 +18,6 @@ export default function AdminDashboardPage() {
   const can = useCan();
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!can(PERMISSIONS.USERS_VIEW)) {
@@ -28,7 +28,7 @@ export default function AdminDashboardPage() {
     api.admin
       .stats()
       .then((res) => setStats(res.stats))
-      .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load stats."))
+      .catch((err) => toast.error(err instanceof ApiError ? err.message : "Failed to load stats."))
       .finally(() => setLoading(false));
   }, [can]);
 
@@ -75,12 +75,6 @@ export default function AdminDashboardPage() {
           {ROLE_META[user?.role ?? "super_admin"].label}
         </span>
       </div>
-
-      {error && (
-        <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </p>
-      )}
 
       {cardDefs.length > 0 && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">

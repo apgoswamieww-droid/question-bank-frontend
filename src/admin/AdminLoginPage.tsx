@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { toast } from "sonner";
 import { Navigate, useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { CheckCircle2, Eye, EyeOff, KeyRound, Loader2, Mail, Lock, ShieldCheck, TriangleAlert } from "lucide-react";
+import { Eye, EyeOff, KeyRound, Loader2, Mail, Lock, ShieldCheck } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAdminAuth } from "../context/useAdminAuth";
 import { ApiError } from "../api/client";
@@ -35,7 +36,6 @@ export default function AdminLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // Live validation with touched tracking
   const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -47,6 +47,10 @@ export default function AdminLoginPage() {
   // Clear the reset=success param after showing the toast
   useEffect(() => {
     if (resetSuccess) {
+      toast.success("Password reset successfully!", {
+        description: "You can now sign in with your new password.",
+        duration: 5000,
+      });
       const timer = window.setTimeout(() => {
         setSearchParams({}, { replace: true });
       }, 5000);
@@ -86,12 +90,11 @@ export default function AdminLoginPage() {
     const pErr = validatePassword(password);
     if (eErr || pErr) return;
     setSubmitting(true);
-    setError(null);
     try {
       await login(email.trim(), password, remember);
       navigate(from, { replace: true });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
+      toast.error(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
       setPassword("");
     } finally {
       setSubmitting(false);
@@ -124,30 +127,7 @@ export default function AdminLoginPage() {
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/80 sm:p-8">
-          <div
-            role="alert"
-            aria-live="polite"
-            className={`grid transition-all duration-200 ease-out ${
-              error ? "mb-5 grid-rows-[1fr] opacity-100" : "pointer-events-none grid-rows-[0fr] opacity-0"
-            }`}
-          >
-            <div className="overflow-hidden">
-              {error && (
-                <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-red-500" aria-hidden />
-                  <span>{error}</span>
-                </div>
-              )}
-            </div>
-          </div>
-
           <form onSubmit={handleSubmit} noValidate className="space-y-5">
-            {resetSuccess && (
-              <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" aria-hidden />
-                <span>Password reset successfully! You can now sign in with your new password.</span>
-              </div>
-            )}
 
             <div>
               <label htmlFor="admin-email" className="mb-1.5 block text-sm font-medium text-slate-800">

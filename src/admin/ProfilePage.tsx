@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState, type FormEvent } from "react";
+import { toast } from "sonner";
 import {
   Camera,
-  CheckCircle2,
   KeyRound,
   Mail,
   Save,
@@ -65,10 +65,6 @@ export default function ProfilePage() {
   // UI state
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
-  const [profileSuccess, setProfileSuccess] = useState(false);
-  const [passwordSuccess, setPasswordSuccess] = useState(false);
-  const [profileError, setProfileError] = useState<string | null>(null);
-  const [passwordError, setPasswordError] = useState<string | null>(null);
 
   // Live validation with touched tracking
   const [profileTouched, setProfileTouched] = useState<Record<string, boolean>>({});
@@ -90,7 +86,7 @@ export default function ProfilePage() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) {
-      setProfileError("Image must be less than 2MB.");
+      toast.error("Image must be less than 2MB.");
       return;
     }
     const reader = new FileReader();
@@ -102,8 +98,6 @@ export default function ProfilePage() {
 
   const handleProfileSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setProfileError(null);
-    setProfileSuccess(false);
     setProfileTouched({ name: true, email: true });
     const nErr = validateName(name);
     const eErr = validateEmail(email);
@@ -124,10 +118,9 @@ export default function ProfilePage() {
         const parsed = JSON.parse(stored);
         localStorage.setItem("qb.admin.user", JSON.stringify({ ...parsed, ...res.user }));
       }
-      setProfileSuccess(true);
-      window.setTimeout(() => setProfileSuccess(false), 3000);
+      toast.success("Profile updated successfully.");
     } catch (err) {
-      setProfileError(err instanceof ApiError ? err.message : "Failed to save profile.");
+      toast.error(err instanceof ApiError ? err.message : "Failed to save profile.");
     } finally {
       setSavingProfile(false);
     }
@@ -135,8 +128,6 @@ export default function ProfilePage() {
 
   const handlePasswordSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setPasswordError(null);
-    setPasswordSuccess(false);
     setPasswordTouched({ current: true, newPw: true, confirm: true });
     const cErr = validateCurrentPassword(currentPassword);
     const nErr = validateNewPassword(newPassword);
@@ -145,14 +136,13 @@ export default function ProfilePage() {
     setSavingPassword(true);
     try {
       await api.changePassword(currentPassword, newPassword);
-      setPasswordSuccess(true);
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
       setPasswordTouched({});
-      window.setTimeout(() => setPasswordSuccess(false), 3000);
+      toast.success("Password changed successfully.");
     } catch (err) {
-      setPasswordError(err instanceof ApiError ? err.message : "Failed to change password.");
+      toast.error(err instanceof ApiError ? err.message : "Failed to change password.");
     } finally {
       setSavingPassword(false);
     }
@@ -220,15 +210,6 @@ export default function ProfilePage() {
           </div>
 
           <form onSubmit={handleProfileSubmit} className="space-y-4">
-            {profileError && (
-              <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{profileError}</p>
-            )}
-            {profileSuccess && (
-              <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-                <CheckCircle2 className="h-4 w-4" aria-hidden /> Profile updated successfully.
-              </div>
-            )}
-
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2">
                 <label className={label}>Full name *</label>
@@ -297,15 +278,6 @@ export default function ProfilePage() {
         </div>
         <div className="p-6">
           <form onSubmit={handlePasswordSubmit} className="space-y-4">
-            {passwordError && (
-              <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{passwordError}</p>
-            )}
-            {passwordSuccess && (
-              <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-                <CheckCircle2 className="h-4 w-4" aria-hidden /> Password changed successfully.
-              </div>
-            )}
-
             <div>
               <label className={label}>Current password *</label>
               <input

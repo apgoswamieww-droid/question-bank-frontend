@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, ClipboardList, Pencil, Plus, Trash2 } from "lucide-react";
 import { api, ApiError, type Test, type TestStatus } from "../api/client";
@@ -27,16 +28,14 @@ export default function TestsListPage() {
   const navigate = useNavigate();
   const [tests, setTests] = useState<Test[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<Test | null>(null);
 
   const load = useCallback(async () => {
     try {
       const res = await api.tests.list({ limit: 100 });
       setTests(res.tests);
-      setError(null);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to load tests.");
+      toast.error(err instanceof ApiError ? err.message : "Failed to load tests.");
     } finally {
       setLoading(false);
     }
@@ -50,8 +49,9 @@ export default function TestsListPage() {
     try {
       await api.tests.delete(deleting.id);
       await load();
+      toast.success("Test deleted.");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to delete test.");
+      toast.error(err instanceof ApiError ? err.message : "Failed to delete test.");
     } finally {
       setDeleting(null);
     }
@@ -155,10 +155,6 @@ export default function TestsListPage() {
           </Button>
         }
       />
-
-      {error && (
-        <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
-      )}
 
       {loading ? (
         <TableSkeleton rows={5} cols={4} />

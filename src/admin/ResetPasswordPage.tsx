@@ -1,6 +1,7 @@
 import { useCallback, useState, type FormEvent } from "react";
+import { toast } from "sonner";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Eye, EyeOff, KeyRound, Loader2, ShieldCheck, TriangleAlert } from "lucide-react";
+import { Eye, EyeOff, KeyRound, Loader2, ShieldCheck } from "lucide-react";
 import { Link } from "react-router-dom";
 import { api, ApiError } from "../api/client";
 
@@ -26,7 +27,6 @@ export default function ResetPasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const touch = useCallback((field: string) => setTouched((t) => ({ ...t, [field]: true })), []);
@@ -58,7 +58,6 @@ export default function ResetPasswordPage() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setError(null);
     setTouched({ password: true, confirm: true });
     const pErr = validatePassword(password);
     const cErr = validateConfirm(confirmPassword, password);
@@ -66,10 +65,11 @@ export default function ResetPasswordPage() {
     setSubmitting(true);
     try {
       await api.resetPassword(token, password);
+      toast.success("Password reset successfully!");
       // Redirect to login with success message
       navigate("/admin?reset=success", { replace: true });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to reset password. The link may have expired.");
+      toast.error(err instanceof ApiError ? err.message : "Failed to reset password. The link may have expired.");
     } finally {
       setSubmitting(false);
     }
@@ -101,23 +101,6 @@ export default function ResetPasswordPage() {
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/80 sm:p-8">
-          <div
-            role="alert"
-            aria-live="polite"
-            className={`grid transition-all duration-200 ease-out ${
-              error ? "mb-5 grid-rows-[1fr] opacity-100" : "pointer-events-none grid-rows-[0fr] opacity-0"
-            }`}
-          >
-            <div className="overflow-hidden">
-              {error && (
-                <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-red-500" aria-hidden />
-                  <span>{error}</span>
-                </div>
-              )}
-            </div>
-          </div>
-
           <form onSubmit={handleSubmit} noValidate className="space-y-5">
             <div>
               <label htmlFor="reset-password" className="mb-1.5 block text-sm font-medium text-slate-800">

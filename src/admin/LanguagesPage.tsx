@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Plus, Globe, Pencil, Trash2 } from "lucide-react";
 import { api, ApiError, type Language } from "../api/client";
 import { PageHeader } from "./components/PageHeader";
@@ -17,7 +18,6 @@ const fields: MasterField[] = [
 export default function LanguagesPage() {
   const [languages, setLanguages] = useState<Language[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Language | null>(null);
   const [deleting, setDeleting] = useState<Language | null>(null);
@@ -26,9 +26,8 @@ export default function LanguagesPage() {
     try {
       const res = await api.languages.list();
       setLanguages(res.languages);
-      setError(null);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to load languages.");
+      toast.error(err instanceof ApiError ? err.message : "Failed to load languages.");
     } finally {
       setLoading(false);
     }
@@ -53,7 +52,7 @@ export default function LanguagesPage() {
       await api.languages.delete(deleting.id);
       await load();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to delete.");
+      toast.error(err instanceof ApiError ? err.message : "Failed to delete.");
     } finally {
       setDeleting(null);
     }
@@ -136,10 +135,6 @@ export default function LanguagesPage() {
           </Button>
         }
       />
-
-      {error && (
-        <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
-      )}
 
       {loading ? (
         <TableSkeleton rows={5} cols={4} />

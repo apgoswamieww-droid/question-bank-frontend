@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { Mail, Pencil, Plus, Trash2, Users as UsersIcon, ShieldCheck, CheckCircle2 } from "lucide-react";
+import { Mail, Pencil, Plus, Trash2, Users as UsersIcon, ShieldCheck } from "lucide-react";
 import { api, ApiError, type AdminUser, type UserRole } from "../api/client";
 import { useAdminAuth } from "../context/useAdminAuth";
 import { PageHeader } from "./components/PageHeader";
@@ -22,7 +23,6 @@ export function UsersPage({ role }: { role: UserRole }) {
   const navigate = useNavigate();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<AdminUser | null>(null);
   const [confirming, setConfirming] = useState<{
@@ -30,7 +30,6 @@ export function UsersPage({ role }: { role: UserRole }) {
     action: "deactivate" | "reactivate" | "delete";
   } | null>(null);
   const [sendingReset, setSendingReset] = useState<AdminUser | null>(null);
-  const [resetSent, setResetSent] = useState<string | null>(null); // teacher name
   const [togglingActive, setTogglingActive] = useState<string | null>(null); // user id being toggled
 
   const isSuperAdmin = currentUser?.role === "super_admin";
@@ -40,9 +39,8 @@ export function UsersPage({ role }: { role: UserRole }) {
     try {
       const res = await api.admin.listUsers();
       setUsers(res.users);
-      setError(null);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to load users.");
+      toast.error(err instanceof ApiError ? err.message : "Failed to load users.");
     } finally {
       setLoading(false);
     }
@@ -56,7 +54,7 @@ export function UsersPage({ role }: { role: UserRole }) {
         if (active) setUsers(res.users);
       })
       .catch((err) => {
-        if (active) setError(err instanceof ApiError ? err.message : "Failed to load users.");
+        if (active) toast.error(err instanceof ApiError ? err.message : "Failed to load users.");
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -111,7 +109,7 @@ export function UsersPage({ role }: { role: UserRole }) {
       await api.admin.updateUser(user.id, { active: !user.active });
       await load();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to update status.");
+      toast.error(err instanceof ApiError ? err.message : "Failed to update status.");
     } finally {
       setTogglingActive(null);
     }
@@ -121,12 +119,10 @@ export function UsersPage({ role }: { role: UserRole }) {
     if (!sendingReset) return;
     try {
       await api.forgotPassword(sendingReset.email);
-      setResetSent(sendingReset.name);
-      window.setTimeout(() => setResetSent(null), 4000);
+      toast.success(`Reset link sent to ${sendingReset.name}`);
     } catch {
       // Silently handle — server always returns success to prevent enumeration
-      setResetSent(sendingReset.name);
-      window.setTimeout(() => setResetSent(null), 4000);
+      toast.success(`Reset link sent to ${sendingReset.name}`);
     } finally {
       setSendingReset(null);
     }
@@ -142,8 +138,9 @@ export function UsersPage({ role }: { role: UserRole }) {
         await api.admin.updateUser(user.id, { active: action === "reactivate" });
       }
       await load();
+      toast.success(action === "delete" ? "User deleted." : action === "reactivate" ? "User reactivated." : "User deactivated.");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Operation failed.");
+      toast.error(err instanceof ApiError ? err.message : "Operation failed.");
     } finally {
       setConfirming(null);
     }
@@ -285,12 +282,6 @@ export function UsersPage({ role }: { role: UserRole }) {
         }
       />
 
-      {error && (
-        <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </p>
-      )}
-
       {loading ? (
         <TableSkeleton rows={5} cols={role === "teacher" ? 6 : 4} />
       ) : (
@@ -321,24 +312,6 @@ export function UsersPage({ role }: { role: UserRole }) {
         onClose={() => { setModalOpen(false); setEditing(null); }}
         onSubmit={handleSubmit}
       />
-
-      {/* Reset link sent toast */}
-      <div
-        role="status"
-        aria-live="polite"
-        className={`fixed bottom-6 right-6 z-50 transition-all duration-200 ${
-          resetSent ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-2 opacity-0"
-        }`}
-      >
-        {resetSent && (
-          <div className="flex items-center gap-2.5 rounded-xl border border-emerald-200 bg-white px-4 py-3 shadow-lg">
-            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" aria-hidden />
-            <span className="text-sm font-medium text-slate-900">
-              Reset link sent to <strong>{resetSent}</strong>
-            </span>
-          </div>
-        )}
-      </div>
 
       {/* Send reset link confirmation */}
       <ConfirmDialog

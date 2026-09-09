@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Pencil, Plus, Trash2, BookMarked } from "lucide-react";
 import { api, ApiError, type Chapter, type Standard, type Subject } from "../api/client";
 import { PageHeader } from "./components/PageHeader";
@@ -13,7 +14,6 @@ export default function ChaptersPage() {
   const [standards, setStandards] = useState<Standard[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Chapter | null>(null);
   const [deleting, setDeleting] = useState<Chapter | null>(null);
@@ -35,9 +35,8 @@ export default function ChaptersPage() {
         standard_id: filterStandard || undefined,
       });
       setChapters(res.chapters);
-      setError(null);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to load chapters.");
+      toast.error(err instanceof ApiError ? err.message : "Failed to load chapters.");
     } finally {
       setLoading(false);
     }
@@ -64,7 +63,7 @@ export default function ChaptersPage() {
     } else {
       // For create, we need subject_id and standard_id from filters
       if (!filterSubject || !filterStandard) {
-        setError("Please select a Subject and Standard first.");
+        toast.error("Please select a Subject and Standard first.");
         return;
       }
       await api.chapters.create({
@@ -85,7 +84,7 @@ export default function ChaptersPage() {
       await api.chapters.delete(deleting.id);
       await loadChapters();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to delete.");
+      toast.error(err instanceof ApiError ? err.message : "Failed to delete.");
     } finally {
       setDeleting(null);
     }
@@ -188,10 +187,6 @@ export default function ChaptersPage() {
           </button>
         )}
       </div>
-
-      {error && (
-        <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
-      )}
 
       {!filterStandard || !filterSubject ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white px-8 py-16 text-center">

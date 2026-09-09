@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Mail, UserRound } from "lucide-react";
 import { api, ApiError } from "../api/client";
@@ -7,7 +8,6 @@ import { TeacherForm } from "./components/TeacherForm";
 export default function TeacherCreatePage() {
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (data: {
     email: string;
@@ -22,7 +22,6 @@ export default function TeacherCreatePage() {
     qualification: string;
   }) => {
     setSubmitting(true);
-    setError(null);
     try {
       const res = await api.admin.createUser({
         ...data,
@@ -33,7 +32,7 @@ export default function TeacherCreatePage() {
         state: { created: true, emailStatus: res.email },
       });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to register teacher.");
+      toast.error(err instanceof ApiError ? err.message : "Failed to register teacher.");
       setSubmitting(false);
     }
   };
@@ -68,7 +67,7 @@ export default function TeacherCreatePage() {
           </p>
         </div>
         <div className="p-6">
-          <TeacherForm mode="create" submitting={submitting} error={error} onSubmit={handleSubmit} />
+          <TeacherForm mode="create" submitting={submitting} onSubmit={handleSubmit} />
         </div>
       </div>
 

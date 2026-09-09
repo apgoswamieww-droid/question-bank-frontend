@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Pencil, Plus, Trash2, Building2 } from "lucide-react";
 import { api, ApiError, type School } from "../api/client";
 import { PageHeader } from "./components/PageHeader";
@@ -34,7 +35,6 @@ const fields: MasterField[] = [
 export default function SchoolsPage() {
   const [schools, setSchools] = useState<School[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<School | null>(null);
   const [deleting, setDeleting] = useState<School | null>(null);
@@ -43,9 +43,8 @@ export default function SchoolsPage() {
     try {
       const res = await api.schools.list();
       setSchools(res.schools);
-      setError(null);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to load schools.");
+      toast.error(err instanceof ApiError ? err.message : "Failed to load schools.");
     } finally {
       setLoading(false);
     }
@@ -69,7 +68,7 @@ export default function SchoolsPage() {
       await api.schools.delete(deleting.id);
       await load();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to delete.");
+      toast.error(err instanceof ApiError ? err.message : "Failed to delete.");
     } finally {
       setDeleting(null);
     }
@@ -149,10 +148,6 @@ export default function SchoolsPage() {
           </Button>
         }
       />
-
-      {error && (
-        <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
-      )}
 
       {loading ? (
         <TableSkeleton rows={5} cols={5} />

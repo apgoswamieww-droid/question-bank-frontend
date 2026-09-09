@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Pencil, Plus, Trash2, Layers } from "lucide-react";
 import { api, ApiError, type Topic, type Chapter, type Standard, type Subject } from "../api/client";
 import { PageHeader } from "./components/PageHeader";
@@ -14,7 +15,6 @@ export default function TopicsPage() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Topic | null>(null);
   const [deleting, setDeleting] = useState<Topic | null>(null);
@@ -43,9 +43,8 @@ export default function TopicsPage() {
     try {
       const res = await api.topics.list({ chapter_id: filterChapter });
       setTopics(res.topics);
-      setError(null);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to load topics.");
+      toast.error(err instanceof ApiError ? err.message : "Failed to load topics.");
     } finally {
       setLoading(false);
     }
@@ -72,7 +71,7 @@ export default function TopicsPage() {
       await api.topics.update(editing.id, data as Partial<Topic>);
     } else {
       if (!filterChapter) {
-        setError("Please select a chapter first.");
+        toast.error("Please select a chapter first.");
         return;
       }
       await api.topics.create({
@@ -92,7 +91,7 @@ export default function TopicsPage() {
       await api.topics.delete(deleting.id);
       await loadTopics();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to delete.");
+      toast.error(err instanceof ApiError ? err.message : "Failed to delete.");
     } finally {
       setDeleting(null);
     }
@@ -190,10 +189,6 @@ export default function TopicsPage() {
           {chapters.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
       </div>
-
-      {error && (
-        <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
-      )}
 
       {!filterChapter ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white px-8 py-16 text-center">

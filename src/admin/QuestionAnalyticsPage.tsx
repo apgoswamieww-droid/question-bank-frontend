@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import {
   Activity,
   Archive,
@@ -43,11 +44,9 @@ const emptyState = (): AnalyticsState => ({
 export default function QuestionAnalyticsPage() {
   const [data, setData] = useState<AnalyticsState>(emptyState());
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   const load = () => {
     setLoading(true);
-    setError(null);
     Promise.all([
       api.analytics.overview(),
       api.analytics.mostUsed(10),
@@ -68,7 +67,7 @@ export default function QuestionAnalyticsPage() {
           performance,
         });
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load analytics."))
+      .catch((err) => toast.error(err instanceof Error ? err.message : "Failed to load analytics."))
       .finally(() => setLoading(false));
   };
 
@@ -101,12 +100,6 @@ export default function QuestionAnalyticsPage() {
           <RefreshCcw className="h-4 w-4" aria-hidden /> Refresh
         </Button>
       </div>
-
-      {error && (
-        <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </p>
-      )}
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">

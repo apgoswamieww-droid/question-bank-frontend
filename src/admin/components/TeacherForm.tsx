@@ -6,7 +6,6 @@ interface TeacherFormProps {
   mode: "create" | "edit";
   initial?: AdminUser | null;
   submitting?: boolean;
-  error?: string | null;
   onSubmit: (data: {
     email: string;
     name: string;
@@ -57,7 +56,7 @@ function validatePhone(v: string) {
   return undefined;
 }
 
-export function TeacherForm({ mode, initial, submitting, error, onSubmit }: TeacherFormProps) {
+export function TeacherForm({ mode, initial, submitting, onSubmit }: TeacherFormProps) {
   const [email, setEmail] = useState(initial?.email ?? "");
   const [name, setName] = useState(initial?.name ?? "");
   const [password, setPassword] = useState("");
@@ -68,7 +67,6 @@ export function TeacherForm({ mode, initial, submitting, error, onSubmit }: Teac
   const [hireDate, setHireDate] = useState(initial?.hireDate ?? "");
   const [subject, setSubject] = useState(initial?.subject ?? "");
   const [qualification, setQualification] = useState(initial?.qualification ?? "");
-  const [localError, setLocalError] = useState<string | null>(null);
 
   // Track which fields the user has interacted with
   const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -84,7 +82,6 @@ export function TeacherForm({ mode, initial, submitting, error, onSubmit }: Teac
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    setLocalError(null);
     // Mark all required fields as touched to show errors
     setTouched({ name: true, email: true, password: true, phone: true });
     // Re-validate after marking touched
@@ -105,8 +102,6 @@ export function TeacherForm({ mode, initial, submitting, error, onSubmit }: Teac
       qualification: qualification.trim(),
     });
   };
-
-  const showError = error ?? localError;
 
   const inputClass = (hasError?: boolean) =>
     `w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-black placeholder:text-slate-400 outline-none transition disabled:bg-slate-100 ${
@@ -197,12 +192,6 @@ export function TeacherForm({ mode, initial, submitting, error, onSubmit }: Teac
           <input className={inputClass()} value={address} onChange={(e) => setAddress(e.target.value)} placeholder="House, street, city" />
         </div>
       </div>
-
-      {showError && (
-        <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-          {showError}
-        </p>
-      )}
 
       <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
         <Button variant="secondary" onClick={() => window.history.back()}>
