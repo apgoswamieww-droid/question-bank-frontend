@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Pencil, Plus, Trash2, BookOpen } from "lucide-react";
-import { api, ApiError, type Subject } from "../api/client";
+import { api, ApiError, type Standard, type Subject } from "../api/client";
 import { PageHeader } from "./components/PageHeader";
 import { Button } from "./components/Button";
 import { DataTable, type DataTableColumn } from "./components/DataTable";
@@ -9,24 +9,34 @@ import { MasterDataModal, type MasterField } from "./components/MasterDataModal"
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { TableSkeleton } from "./components/Skeleton";
 
-const fields: MasterField[] = [
-  { key: "name", label: "Subject Name", placeholder: "e.g. Mathematics", required: true, colSpan: 2 },
-  { key: "icon", label: "Icon (emoji)", placeholder: "📐", colSpan: 1 },
-  { key: "color", label: "Color", type: "color", colSpan: 1 },
-  { key: "sort_order", label: "Sort Order", type: "number", placeholder: "0" },
-];
-
 export default function SubjectsPage() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [standards, setStandards] = useState<Standard[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Subject | null>(null);
   const [deleting, setDeleting] = useState<Subject | null>(null);
+  const [filterStandard, setFilterStandard] = useState("");
+
+  // subject_id -> standard ids the subject is mapped to (standard_subjects)
+  const [subjectStandards, setSubjectStandards] = useState<Map<string, string[]>>(new Map());
 
   const load = useCallback(async () => {
     try {
-      const res = await api.subjects.list();
-      setSubjects(res.subjects);
+      const [subRes, stdRes, mapRes] = await Promise.all([
+        api.subjects.list(),
+        api.standards.list(),
+        api.standardSubjects.list(),
+      ]);
+      setSubjects(subRes.subjects);
+      setStandards(stdRes.standards);
+      const map = new Map<string, string[]>();
+      for (const m of mapRes.mappings) {
+        const list = map.get(m.subject_id) ?? [];
+        list.push(m.standard_id);
+        map.set(m.subject_id, list);
+      }
+      setSubjectStandards(map);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Failed to load subjects.");
     } finally {
@@ -38,10 +48,19 @@ export default function SubjectsPage() {
   useEffect(() => { load(); }, [load]);
 
   const handleSubmit = async (data: Record<string, unknown>) => {
+    const standardIds = (data.standard_ids as string[] | undefined) ?? [];
+    const payload = { ...data };
+    delete payload.standard_ids;
     if (editing) {
-      await api.subjects.update(editing.id, data as Partial<Subject>);
+      await api.subjects.update(editing.id, {
+        ...(payload as Partial<Subject>),
+        standard_ids: standardIds,
+      });
     } else {
-      await api.subjects.create(data as { name: string; icon?: string; color?: string; sort_order?: number });
+      await api.subjects.create({
+        ...(payload as { name: string; icon?: string; color?: string; sort_order?: number }),
+        standard_ids: standardIds,
+      });
     }
     await load();
   };
@@ -57,6 +76,30 @@ export default function SubjectsPage() {
       setDeleting(null);
     }
   };
+
+  const filteredSubjects =
+    !filterStandard
+      ? subjects
+      : subjects.filter((s) => subjectStandards.get(s.id)?.includes(filterStandard));
+
+  const getStandardOptions = () =>
+    standards.map((st) => ({ value: st.id, label: st.name }));
+
+  const getFields = (): MasterField[] => [
+    { key: "name", label: "Subject Name", placeholder: "e.g. Mathematics", required: true, colSpan: 2 },
+    { key: "icon", label: "Icon (emoji)", placeholder: "📐", colSpan: 1 },
+    { key: "color", label: "Color", type: "color", colSpan: 1 },
+    { key: "sort_order", label: "Sort Order", type: "number", placeholder: "0" },
+    {
+      key: "standard_ids",
+      label: "Standards",
+      type: "multiselect",
+      options: getStandardOptions(),
+      colSpan: 2,
+      // When creating while a standard is selected in the filter, pre-check it.
+      defaultValue: filterStandard ? [filterStandard] : [],
+    },
+  ];
 
   const columns: DataTableColumn<Subject>[] = [
     {
@@ -79,6 +122,40 @@ export default function SubjectsPage() {
           </div>
         </div>
       ),
+    },
+    {
+      key: "standards",
+      header: "Standards",
+      sortValue: (s) =>
+        (subjectStandards.get(s.id) ?? [])
+          .map((id) => standards.find((st) => st.id === id)?.name)
+          .filter(Boolean)
+          .join(", "),
+      render: (s) => {
+        const ids = subjectStandards.get(s.id) ?? [];
+        const chips = ids
+          .map((id) => standards.find((st) => st.id === id))
+          .filter(Boolean) as Standard[];
+        if (!chips.length) {
+          return <span className="text-sm text-slate-400">—</span>;
+        }
+        const shown = chips.slice(0, 3);
+        return (
+          <div className="flex flex-wrap items-center gap-1">
+            {shown.map((st) => (
+              <span
+                key={st.id}
+                className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 ring-1 ring-slate-200"
+              >
+                {st.name}
+              </span>
+            ))}
+            {chips.length > shown.length && (
+              <span className="text-xs text-slate-400">+{chips.length - shown.length}</span>
+            )}
+          </div>
+);
+      },
     },
     {
       key: "sort_order",
@@ -144,8 +221,19 @@ export default function SubjectsPage() {
       ) : (
         <DataTable
           columns={columns}
-          data={subjects}
+          data={filteredSubjects}
           rowKey={(s) => s.id}
+          toolbar={
+            <select
+              className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-black outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/15"
+              value={filterStandard}
+              onChange={(e) => setFilterStandard(e.target.value)}
+              aria-label="Filter by standard"
+            >
+              <option value="">All Standards</option>
+              {standards.map((st) => <option key={st.id} value={st.id}>{st.name}</option>)}
+            </select>
+          }
           searchPlaceholder="Search subjects…"
           emptyIcon={<BookOpen className="h-6 w-6" aria-hidden />}
           emptyTitle="No subjects"
@@ -162,8 +250,16 @@ export default function SubjectsPage() {
       <MasterDataModal
         open={modalOpen}
         title={editing ? "Edit Subject" : "Add Subject"}
-        fields={fields}
-        initial={editing}
+        fields={getFields()}
+        initial={
+          editing
+            ? {
+                ...editing,
+                // Prefill the multiselect with the subject's mapped standards.
+                standard_ids: subjectStandards.get(editing.id) ?? [],
+              }
+            : null
+        }
         onClose={() => { setModalOpen(false); setEditing(null); }}
         onSubmit={handleSubmit}
       />

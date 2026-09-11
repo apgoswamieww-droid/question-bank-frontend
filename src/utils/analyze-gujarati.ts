@@ -16,31 +16,12 @@ const romanToGujarati: Record<string, string> = {
   "k": "ક", "K": "ક", "kh": "ખ", "g": "ગ", "G": "ગ", "gh": "ઘ", "ng": "ઙ",
   "c": "ચ", "ch": "છ", "j": "જ", "J": "જ", "jh": "ઝ", "ny": "ઞ",
   "T": "ટ", "Th": "ઠ", "D": "ડ", "Dh": "ઢ", "N": "ણ",
-  "t": "ત", "th": "થ", "d": "દ", "dh": "ધ", "n": "ન", "N": "ન",
+  "t": "ત", "th": "થ", "d": "દ", "dh": "ધ", "n": "ન",
   "p": "પ", "P": "પ", "ph": "ફ", "b": "બ", "B": "બ", "bh": "ભ",
   "m": "મ", "M": "મ", "y": "ય", "Y": "ય", "r": "ર", "R": "ર",
   "l": "લ", "L": "ળ", "v": "વ", "V": "વ", "w": "વ",
   "sh": "શ", "Sh": "શ", "S": "ષ", "s": "સ", "h": "હ",
   "H": "હ",
-
-  // Vowel signs (following consonant)
-  "a": "",   // implicit 'a'
-  "A": "ા",  // aa
-  "i": "િ",  // i
-  "I": "ી",  // ii
-  "u": "ુ",  // u
-  "U": "ૂ",  // uu
-  "e": "ే",  // e
-  "ai": "ૈ", // ai
-  "o": "ો",  // o
-  "au": "ૌ", // au
-  "ri": "ૃ", // ri
-};
-
-// Common conjuncts
-const conjuncts: Record<string, string> = {
-  "ksha": "ક્ષ", "ksh": "ક્ષ", "tra": "ત્ર", "tr": "ત્ર",
-  "shr": "શ્ર", "shri": "શ્રી", "gya": "જ્ય",
 };
 
 // Detect common patterns

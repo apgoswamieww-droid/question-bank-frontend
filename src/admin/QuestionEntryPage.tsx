@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, BookOpen, BookOpenCheck, ChevronDown, Eye, History, ListFilter, Loader2, Plus, Save, SaveAll, Trash2, X } from "lucide-react";
+import { ArrowLeft, BookOpen, BookOpenCheck, ChevronDown, Eye, History, Languages, ListFilter, Loader2, Plus, Save, SaveAll, Trash2, X } from "lucide-react";
 import {
   api,
   ApiError,
@@ -18,6 +18,7 @@ import { Button } from "./components/Button";
 import { RichEditor } from "./components/RichEditor";
 import { QuestionHistoryPanel } from "./components/QuestionHistoryPanel";
 import { QuestionViewModal } from "./components/QuestionViewModal";
+import { LinkVariantModal } from "./components/LinkVariantModal";
 import { StoredRichText } from "./components/StoredRichText";
 import { storedHtml } from "./components/storedRichHelper";
 
@@ -121,9 +122,11 @@ export default function QuestionEntryPage() {
 
   // Draft editor
   const [draft, setDraft] = useState<Draft>(emptyDraft());
+  const [familyId, setFamilyId] = useState<string | null>(null);
   const [saving, setSaving] = useState<"draft" | "published" | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [viewQuestionId, setViewQuestionId] = useState<string | null>(null);
+  const [variantModalOpen, setVariantModalOpen] = useState(false);
 
   // Wizard tabs
   const [activeTab, setActiveTab] = useState<"question" | "metadata" | "review">("question");
@@ -220,6 +223,7 @@ export default function QuestionEntryPage() {
       options: [],
       payload: {},
     });
+    setFamilyId(q.family_id);
     // Load options if it's an MCQ type
     if (q.type === "mcq_single" || q.type === "mcq_multi") {
       api.questions.get(q.id).then((res) => {
@@ -238,6 +242,14 @@ export default function QuestionEntryPage() {
   const newQuestion = () => {
     setDraft(emptyDraft());
     setSelectedIdx(-1);
+    setFamilyId(null);
+  };
+
+  const createVariantFromCurrent = () => {
+    setDraft((d) => ({ ...d, id: null }));
+    setSelectedIdx(-1);
+    setVariantModalOpen(false);
+    setActiveTab("question");
   };
 
   // ---- Load question for editing when navigated with ?id= ----
@@ -329,8 +341,14 @@ export default function QuestionEntryPage() {
 
       const res = draft.id
         ? await api.questions.update(draft.id, { ...base, options, payload })
-        : await api.questions.create({ ...base, options, payload });
+        : await api.questions.create({
+            ...base,
+            ...(familyId ? { family_id: familyId } : {}),
+            options,
+            payload,
+          });
 
+      if (res.question.family_id) setFamilyId(res.question.family_id);
       if (status === "published") {
         setSelectedIdx(questions.findIndex((q) => q.id === res.question.id));
       }
@@ -403,9 +421,14 @@ export default function QuestionEntryPage() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {draft.id && (
-              <Button size="sm" variant="secondary" onClick={() => setHistoryOpen(true)}>
-                <History className="h-4 w-4" aria-hidden /> History
-              </Button>
+              <>
+                <Button size="sm" variant="secondary" onClick={() => setHistoryOpen(true)}>
+                  <History className="h-4 w-4" aria-hidden /> History
+                </Button>
+                <Button size="sm" variant="secondary" onClick={() => setVariantModalOpen(true)}>
+                  <Languages className="h-4 w-4" aria-hidden /> Add Variant
+                </Button>
+              </>
             )}
             <Button size="sm" variant="secondary" onClick={() => setListOpen((o) => !o)}>
               <ListFilter className="h-4 w-4" aria-hidden /> {listOpen ? "Hide List" : "Browse"}
@@ -692,6 +715,17 @@ export default function QuestionEntryPage() {
       />
 
       <QuestionViewModal questionId={viewQuestionId} open={Boolean(viewQuestionId)} onClose={() => setViewQuestionId(null)} />
+
+      <LinkVariantModal
+        open={variantModalOpen}
+        questionId={draft.id}
+        languages={languages}
+        onClose={() => setVariantModalOpen(false)}
+        onLinked={(fid) => {
+          if (fid) setFamilyId(fid);
+        }}
+        onCreateVariant={createVariantFromCurrent}
+      />
 
       <QuestionHistoryPanel
         questionId={draft.id}

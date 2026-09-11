@@ -101,7 +101,7 @@ export default function AdminLoginPage() {
     }
   };
 
-  const inputClass = (hasError?: boolean) =>
+  const inputClass = (hasError?: boolean | string) =>
     `w-full rounded-xl border bg-white py-3 text-sm text-black placeholder:text-slate-400 outline-none transition disabled:bg-slate-100 disabled:cursor-not-allowed autofill:shadow-[inset_0_0_0_1000px_#fff] ${
       hasError
         ? "border-red-400 px-10 focus:border-red-500 focus:ring-4 focus:ring-red-100"

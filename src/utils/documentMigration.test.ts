@@ -16,7 +16,7 @@ describe("migrateDocument", () => {
     };
     const result = migrateDocument(raw);
     expect(result.format).toBe("question-bank");
-    expect(result.version).toBe(2);
+    expect(result.version).toBe(3);
     expect(result.metadata.instituteName).toBe(DEFAULT_EXAM_METADATA.instituteName);
     expect(result.metadata.sections).toEqual(DEFAULT_EXAM_METADATA.sections);
   });
@@ -64,14 +64,14 @@ describe("migrateDocument", () => {
     expect(result.content).toEqual({ type: "doc", content: [] });
   });
 
-  it("always sets version to 2", () => {
+  it("always sets version to 3", () => {
     const raw = {
       format: "question-bank",
       version: 1,
       content: { type: "doc", content: [] },
     };
     const result = migrateDocument(raw);
-    expect(result.version).toBe(2);
+    expect(result.version).toBe(3);
   });
 
   it("preserves custom sections", () => {

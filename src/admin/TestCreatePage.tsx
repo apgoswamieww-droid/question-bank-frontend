@@ -603,9 +603,9 @@ export default function TestCreatePage() {
                   {s.previewOpen && (
                     <div className="mt-2 rounded-lg bg-slate-50 p-3 text-sm">
                       <p className="text-slate-800">{richTextToPlain(s.question.content)}</p>
-                      {s.question.explanation && (
+                      {s.question.explanation ? (
                         <p className="mt-1 text-xs italic text-slate-500">Explanation: {richTextToPlain(s.question.explanation)}</p>
-                      )}
+                      ) : null}
                     </div>
                   )}
                 </div>

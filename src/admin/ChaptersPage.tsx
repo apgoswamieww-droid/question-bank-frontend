@@ -19,6 +19,7 @@ export default function ChaptersPage() {
   const [deleting, setDeleting] = useState<Chapter | null>(null);
   const [filterStandard, setFilterStandard] = useState("");
   const [filterSubject, setFilterSubject] = useState("");
+  const [mappedSubjectIds, setMappedSubjectIds] = useState<Set<string> | null>(null);
 
   const loadMasters = useCallback(async () => {
     try {
@@ -41,6 +42,25 @@ export default function ChaptersPage() {
       setLoading(false);
     }
   }, [filterStandard, filterSubject]);
+
+  // Load which subjects are mapped to the selected standard; fall back to all
+  // subjects when no standard is picked, the mapping fails, or nothing is mapped.
+  useEffect(() => {
+    let cancelled = false;
+    if (!filterStandard) {
+      setMappedSubjectIds(null);
+      return;
+    }
+    api.standardSubjects
+      .list({ standard_id: filterStandard })
+      .then((res) => {
+        if (cancelled) return;
+        const ids = res.mappings.map((m) => m.subject_id);
+        setMappedSubjectIds(ids.length ? new Set(ids) : null);
+      })
+      .catch(() => { if (!cancelled) setMappedSubjectIds(null); });
+    return () => { cancelled = true; };
+  }, [filterStandard]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { loadMasters(); }, [loadMasters]);
@@ -175,7 +195,9 @@ export default function ChaptersPage() {
           onChange={(e) => { setFilterSubject(e.target.value); setLoading(true); }}
         >
           <option value="">All Subjects</option>
-          {subjects.map((s) => <option key={s.id} value={s.id}>{s.icon} {s.name}</option>)}
+          {subjects
+            .filter((s) => !mappedSubjectIds || mappedSubjectIds.has(s.id))
+            .map((s) => <option key={s.id} value={s.id}>{s.icon} {s.name}</option>)}
         </select>
         {(filterStandard || filterSubject) && (
           <button

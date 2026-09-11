@@ -176,7 +176,7 @@ export function RolesPermissionsPage() {
     });
   };
 
-  const toggleModulePermissions = (moduleName: string, perms: Permission[]) => {
+  const toggleModulePermissions = (_moduleName: string, perms: Permission[]) => {
     if (isSuperAdmin) return;
     const codes = perms.map((p) => p.code);
     const current = draft[activeRoleCode] ?? [];

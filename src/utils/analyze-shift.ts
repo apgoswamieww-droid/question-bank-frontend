@@ -35,7 +35,7 @@ const asciiChars = [...freq.entries()].filter(([ch]) => {
 }).sort((a, b) => a[0].charCodeAt(0) - b[0].charCodeAt(0));
 
 console.log("All printable ASCII characters in text:");
-for (const [ch, count] of asciiChars) {
+for (const [ch] of asciiChars) {
   const code = ch.charCodeAt(0);
   console.log(`  "${ch}" = ${code} (0x${code.toString(16).toUpperCase().padStart(2,'0')})`);
 }
@@ -50,8 +50,7 @@ console.log("\nDETECTING SHIFT PATTERN...\n");
 const shifts = [];
 for (let shift = 1; shift <= 10; shift++) {
   const shifted: string[] = [];
-  let valid = true;
-  for (const [ch, count] of sorted.slice(0, 15)) {
+  for (const [ch] of sorted.slice(0, 15)) {
     if (ch === ' ') continue;
     const code = ch.charCodeAt(0);
     if (code >= 32 && code <= 126) {

@@ -21,6 +21,11 @@ interface NumberingSettingsLike {
   continueAcrossSections: boolean;
 }
 
+export interface QuestionRefV3 {
+  familyId: string;
+  position: number;
+}
+
 export interface RawDocument {
   format?: string;
   version?: number;
@@ -28,6 +33,7 @@ export interface RawDocument {
   createdAt?: string;
   updatedAt?: string;
   metadata?: RawMetadata;
+  questionRefs?: QuestionRefV3[];
   content?: DocumentJson;
 }
 
@@ -38,6 +44,7 @@ export interface QuestionBankDocument {
   createdAt: string;
   updatedAt: string;
   metadata: ExamMetadata;
+  questionRefs?: QuestionRefV3[];
   content: DocumentJson; // Tiptap JSON node
 }
 
@@ -78,11 +85,16 @@ export function migrateDocument(rawJson: RawDocument): QuestionBankDocument {
 
   return {
     format: "question-bank",
-    version: 2,
+    version: 3,
     title,
     createdAt,
     updatedAt,
     metadata,
+    questionRefs: Array.isArray(rawJson.questionRefs)
+      ? rawJson.questionRefs.filter(
+          (r) => typeof r?.familyId === "string" && typeof r?.position === "number"
+        )
+      : undefined,
     content,
   };
 }

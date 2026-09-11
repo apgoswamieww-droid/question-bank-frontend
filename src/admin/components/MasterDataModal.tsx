@@ -5,18 +5,20 @@ import { Button } from "./Button";
 export interface MasterField {
   key: string;
   label: string;
-  type?: "text" | "number" | "select" | "textarea" | "color";
+  type?: "text" | "number" | "select" | "textarea" | "color" | "multiselect";
   placeholder?: string;
   required?: boolean;
   options?: { value: string; label: string }[];
   colSpan?: number;
+  /** For multiselect: default selected values when creating a new record. */
+  defaultValue?: string[];
 }
 
 interface MasterDataModalProps {
   open: boolean;
   title: string;
   fields: MasterField[];
-  initial?: Record<string, unknown> | null;
+  initial?: object | null;
   onClose: () => void;
   onSubmit: (data: Record<string, unknown>) => Promise<void>;
 }
@@ -36,9 +38,12 @@ export function MasterDataModal({
 
   useEffect(() => {
     if (open) {
+      const init = initial as Record<string, unknown> | null;
       const defaults: Record<string, unknown> = {};
       for (const f of fields) {
-        defaults[f.key] = initial?.[f.key] ?? (f.type === "number" ? 0 : "");
+        defaults[f.key] =
+          init?.[f.key] ??
+          (f.type === "multiselect" ? (f.defaultValue ?? []) : f.type === "number" ? 0 : "");
       }
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setForm(defaults);
@@ -54,7 +59,11 @@ export function MasterDataModal({
     for (const f of fields) {
       if (f.required) {
         const val = form[f.key];
-        if (val === undefined || val === null || val === "") {
+        const empty =
+          f.type === "multiselect"
+            ? !Array.isArray(val) || val.length === 0
+            : val === undefined || val === null || val === "";
+        if (empty) {
           errs[f.key] = `${f.label} is required.`;
         }
       }
@@ -78,7 +87,7 @@ export function MasterDataModal({
     }
   };
 
-  const inputClass = (hasError?: boolean) =>
+  const inputClass = (hasError?: boolean | string) =>
     `w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-black placeholder:text-slate-400 outline-none transition disabled:bg-slate-100 ${
       hasError
         ? "border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-100"
@@ -114,7 +123,48 @@ export function MasterDataModal({
                 <label className="mb-1 block text-sm font-medium text-slate-700">
                   {f.label} {f.required && <span className="text-red-500">*</span>}
                 </label>
-                {f.type === "select" ? (
+                {f.type === "multiselect" ? (
+                  <div
+                    className={`max-h-44 overflow-y-auto rounded-xl border bg-white p-2 ${
+                      errors[f.key]
+                        ? "border-red-400"
+                        : "border-slate-300 focus-within:border-primary"
+                    }`}
+                  >
+                    {(f.options ?? []).length === 0 && (
+                      <p className="px-1 py-1 text-xs text-slate-400">No options available</p>
+                    )}
+                    {(f.options ?? []).map((o) => {
+                      const selected = Array.isArray(form[f.key])
+                        ? (form[f.key] as string[]).includes(o.value)
+                        : false;
+                      return (
+                        <label
+                          key={o.value}
+                          className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+                        >
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 accent-[var(--color-primary,theme(colors.blue.600))]"
+                            checked={selected}
+                            onChange={(e) =>
+                              setForm((p) => {
+                                const cur = Array.isArray(p[f.key]) ? (p[f.key] as string[]) : [];
+                                return {
+                                  ...p,
+                                  [f.key]: e.target.checked
+                                    ? [...cur, o.value]
+                                    : cur.filter((v) => v !== o.value),
+                                };
+                              })
+                            }
+                          />
+                          <span className="truncate">{o.label}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                ) : f.type === "select" ? (
                   <select
                     className={inputClass(Boolean(errors[f.key]))}
                     value={String(form[f.key] ?? "")}
@@ -153,7 +203,7 @@ export function MasterDataModal({
                   <input
                     type={f.type ?? "text"}
                     className={inputClass(Boolean(errors[f.key]))}
-                    value={form[f.key] ?? ""}
+                    value={String(form[f.key] ?? "")}
                     onChange={(e) => setForm((p) => ({ ...p, [f.key]: f.type === "number" ? Number(e.target.value) : e.target.value }))}
                     placeholder={f.placeholder}
                   />

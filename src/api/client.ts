@@ -227,6 +227,15 @@ export interface Subject {
   active: boolean;
 }
 
+// A row in the standard_subjects junction (subject joined in).
+export interface StandardSubjectMapping {
+  id: string;
+  standard_id: string;
+  subject_id: string;
+  sort_order: number;
+  subject?: Pick<Subject, "id" | "name" | "icon" | "color" | "sort_order" | "active"> | null;
+}
+
 export interface Chapter {
   id: string;
   subject_id: string;
@@ -314,6 +323,7 @@ export interface Question {
   tags: string[];
   status: string;
   sort_order: number;
+  family_id: string | null;
   created_at: string;
   updated_at: string;
   usage_count?: number;
@@ -326,6 +336,11 @@ export interface QuestionOption {
   content: unknown;
   is_correct: boolean;
   sort_order: number;
+}
+
+export interface QuestionVariant extends Question {
+  options: QuestionOption[];
+  payload: unknown;
 }
 
 export interface QuestionFilters {
@@ -353,6 +368,7 @@ export interface QuestionFilters {
   created_to?: string;
   updated_from?: string;
   updated_to?: string;
+  family_id?: string;
   with_usage?: boolean;
   limit?: number;
   offset?: number;
@@ -494,6 +510,74 @@ export interface TestInput {
   questionIds?: string[];
 }
 
+export type PaperStatus = "draft" | "published" | "archived";
+
+export interface Paper {
+  id: string;
+  title: string;
+  description: string | null;
+  standard_id: string | null;
+  subject_id: string | null;
+  exam_type_id: string | null;
+  duration_min: number;
+  total_marks: number;
+  status: PaperStatus;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  question_count?: number;
+}
+
+export interface PaperFamilyVariant extends Question {
+  options: QuestionOption[];
+  payload: unknown;
+}
+
+export interface PaperFamily {
+  id: string;
+  family_id: string;
+  sort_order: number;
+  marks: number;
+  primary: PaperFamilyVariant | null;
+  variants: PaperFamilyVariant[];
+}
+
+export interface PaperWithFamilies extends Paper {
+  families: PaperFamily[];
+}
+
+export interface PaperInput {
+  title: string;
+  description?: string | null;
+  standard_id?: string | null;
+  subject_id?: string | null;
+  exam_type_id?: string | null;
+  duration_min?: number;
+  total_marks?: number;
+  status?: PaperStatus;
+  familyIds?: string[];
+}
+
+export interface PaperQuestion {
+  id: string;
+  family_id: string;
+  sort_order: number;
+  marks: number;
+  resolved_language_id: string | null;
+  question: PaperFamilyVariant;
+}
+
+export interface PaperInLanguage {
+  paper: Paper;
+  questions: PaperQuestion[];
+  missing_families: string[];
+}
+
+export interface PaperLanguages {
+  languages: string[];
+  coverage: { family_id: string; languages: string[] }[];
+}
+
 export const api = {
   login(email: string, password: string): Promise<LoginResponse> {
     return request<LoginResponse>("/auth/login", {
@@ -546,14 +630,23 @@ export const api = {
       return request(`/admin/standards/${id}`, { method: "DELETE" });
     },
   },
+  standardSubjects: {
+    list(params?: { standard_id?: string; subject_id?: string }): Promise<{ mappings: StandardSubjectMapping[] }> {
+      const qs = new URLSearchParams();
+      if (params?.standard_id) qs.set("standard_id", params.standard_id);
+      if (params?.subject_id) qs.set("subject_id", params.subject_id);
+      const q = qs.toString();
+      return request(`/admin/standard-subjects${q ? `?${q}` : ""}`);
+    },
+  },
   subjects: {
     list(): Promise<{ subjects: Subject[] }> {
       return request("/admin/subjects");
     },
-    create(data: { name: string; icon?: string; color?: string; sort_order?: number }): Promise<{ subject: Subject }> {
+    create(data: { name: string; icon?: string; color?: string; sort_order?: number; standard_ids?: string[] }): Promise<{ subject: Subject }> {
       return request("/admin/subjects", { method: "POST", body: data });
     },
-    update(id: string, data: Partial<Subject>): Promise<{ subject: Subject }> {
+    update(id: string, data: Partial<Subject> & { standard_ids?: string[] }): Promise<{ subject: Subject }> {
       return request(`/admin/subjects/${id}`, { method: "PATCH", body: data });
     },
     delete(id: string): Promise<{ deleted: boolean }> {
@@ -676,6 +769,15 @@ export const api = {
     get(id: string): Promise<{ question: Question; options: QuestionOption[]; payload: unknown }> {
       return request(`/admin/questions/${id}`);
     },
+    variants(id: string): Promise<{ family_id: string | null; variants: QuestionVariant[] }> {
+      return request(`/admin/questions/${id}/variants`);
+    },
+    linkVariant(id: string, familyId?: string | null): Promise<{ question: Question; family_id: string | null }> {
+      return request(`/admin/questions/${id}/link-variant`, {
+        method: "POST",
+        body: { family_id: familyId ?? null },
+      });
+    },
     create(data: Partial<Question> & { options?: { label: string; content: unknown; is_correct: boolean }[]; payload?: unknown }): Promise<{ question: Question; options: QuestionOption[]; payload: unknown }> {
       return request("/admin/questions", { method: "POST", body: data });
     },
@@ -740,6 +842,35 @@ export const api = {
     },
     delete(id: string): Promise<{ deleted: boolean }> {
       return request(`/admin/tests/${id}`, { method: "DELETE" });
+    },
+  },
+
+  papers: {
+    list(params?: { status?: PaperStatus; limit?: number; offset?: number }): Promise<{ papers: Paper[]; total: number }> {
+      const qs = new URLSearchParams();
+      if (params?.status) qs.set("status", params.status);
+      if (params?.limit) qs.set("limit", String(params.limit));
+      if (params?.offset) qs.set("offset", String(params.offset));
+      const q = qs.toString();
+      return request(`/admin/papers${q ? `?${q}` : ""}`);
+    },
+    get(id: string): Promise<PaperWithFamilies> {
+      return request(`/admin/papers/${id}`);
+    },
+    create(data: PaperInput): Promise<PaperWithFamilies> {
+      return request("/admin/papers", { method: "POST", body: data });
+    },
+    update(id: string, data: Partial<PaperInput>): Promise<PaperWithFamilies> {
+      return request(`/admin/papers/${id}`, { method: "PATCH", body: data });
+    },
+    delete(id: string): Promise<{ deleted: boolean }> {
+      return request(`/admin/papers/${id}`, { method: "DELETE" });
+    },
+    print(id: string, language: string): Promise<PaperInLanguage> {
+      return request(`/admin/papers/${id}/print?language=${encodeURIComponent(language)}`);
+    },
+    languages(id: string): Promise<PaperLanguages> {
+      return request(`/admin/papers/${id}/languages`);
     },
   },
 

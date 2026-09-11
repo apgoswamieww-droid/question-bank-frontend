@@ -1,7 +1,7 @@
 import { useCallback, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Eye, EyeOff, KeyRound, Loader2, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, KeyRound, Loader2, ShieldCheck, TriangleAlert } from "lucide-react";
 import { Link } from "react-router-dom";
 import { api, ApiError } from "../api/client";
 
@@ -75,7 +75,7 @@ export default function ResetPasswordPage() {
     }
   };
 
-  const inputClass = (hasError?: boolean) =>
+  const inputClass = (hasError?: boolean | string) =>
     `w-full rounded-xl border bg-white py-3 text-sm text-black placeholder:text-slate-400 outline-none transition disabled:bg-slate-100 disabled:cursor-not-allowed ${
       hasError
         ? "border-red-400 px-10 focus:border-red-500 focus:ring-4 focus:ring-red-100"

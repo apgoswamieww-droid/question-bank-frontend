@@ -6,8 +6,13 @@ import {
   Printer,
   Sliders,
   Clock,
+  Library,
+  CloudUpload,
+  Loader2,
 } from "lucide-react";
 import type { RecentFileItem } from "../types/files";
+import type { Language } from "../api/client";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 
 interface DocumentToolbarProps {
   onNew: () => void;
@@ -16,6 +21,13 @@ interface DocumentToolbarProps {
   onSaveAs: () => void;
   onExamSettings: () => void;
   onPrintPreview: () => void;
+  onQuestionBank: () => void;
+  onSaveToCloud: () => void;
+  cloudSaving: boolean;
+  language: Language | null;
+  languageSwitching: boolean;
+  missingLanguageCount: number;
+  onSwitchLanguage: (lang: Language) => void;
   recentFiles: RecentFileItem[];
   isRecentOpen: boolean;
   setIsRecentOpen: (open: boolean) => void;
@@ -28,6 +40,13 @@ export function DocumentToolbar({
   onSaveAs,
   onExamSettings,
   onPrintPreview,
+  onQuestionBank,
+  onSaveToCloud,
+  cloudSaving,
+  language,
+  languageSwitching,
+  missingLanguageCount,
+  onSwitchLanguage,
   recentFiles,
   isRecentOpen,
   setIsRecentOpen,
@@ -74,6 +93,34 @@ export function DocumentToolbar({
           onClick={onExamSettings}
         >
           <Sliders size={15} strokeWidth={2} /> <span>Exam Settings</span>
+        </button>
+        <button
+          type="button"
+          className="btn-with-label"
+          title="Insert questions from the question bank"
+          onClick={onQuestionBank}
+        >
+          <Library size={15} strokeWidth={2} /> <span>Question Bank</span>
+        </button>
+        <LanguageSwitcher
+          current={language}
+          disabled={languageSwitching}
+          missingCount={missingLanguageCount}
+          onSwitch={onSwitchLanguage}
+        />
+        <button
+          type="button"
+          className="btn-with-label"
+          title="Save this paper to the cloud question bank"
+          onClick={onSaveToCloud}
+          disabled={cloudSaving}
+        >
+          {cloudSaving ? (
+            <Loader2 size={15} strokeWidth={2} className="animate-spin" />
+          ) : (
+            <CloudUpload size={15} strokeWidth={2} />
+          )}{" "}
+          <span>Save to Cloud</span>
         </button>
         <button
           type="button"

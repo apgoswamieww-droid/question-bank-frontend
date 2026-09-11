@@ -1,3 +1,22 @@
+interface FilePickerAcceptType {
+  description?: string;
+  accept: Record<string, readonly string[]>;
+}
+
+declare global {
+  interface Window {
+    showOpenFilePicker: (options?: {
+      types?: readonly FilePickerAcceptType[];
+      excludeAcceptAllOption?: boolean;
+      multiple?: boolean;
+    }) => Promise<FileSystemFileHandle[]>;
+    showSaveFilePicker: (options?: {
+      suggestedName?: string;
+      types?: readonly FilePickerAcceptType[];
+    }) => Promise<FileSystemFileHandle>;
+  }
+}
+
 let savedHandle: FileSystemFileHandle | null = null;
 
 const QBANK_TYPE = { description: "Question Bank Document", accept: { "application/json": [".qbank"] } } as const;

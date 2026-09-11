@@ -37,7 +37,7 @@ export function KrutiDevButton({ editor, compact }: KrutiDevButtonProps) {
       .insertContent(converted)
       .run();
 
-    const charCount = selectedText.replace(/[\x00-\x7F]/g, "").length; // count non-ASCII
+    const charCount = [...selectedText].filter((ch) => ch.charCodeAt(0) > 127).length; // count non-ASCII
     toast.success("Converted to Unicode", {
       description: `${charCount} KrutiDev character(s) converted`,
     });

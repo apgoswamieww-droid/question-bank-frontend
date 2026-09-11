@@ -3,6 +3,7 @@ import type { Editor } from "@tiptap/react";
 import type { ExamMetadata } from "../types/examMetadata";
 import { DEFAULT_EXAM_METADATA } from "../types/examMetadata";
 import { migrateDocument } from "../utils/documentMigration";
+import { extractQuestionRefs } from "../utils/questionRefs";
 import {
   openFileFromDisk,
   saveFileToDisk,
@@ -48,11 +49,12 @@ export function useDocumentManagement({
       const title = docTitle || "Untitled Question Paper";
       const docPayload = {
         format: "question-bank",
-        version: 2,
+        version: 3,
         title,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         metadata: examMetadata,
+        questionRefs: extractQuestionRefs(editor),
         content: editor.getJSON(),
       };
 
@@ -85,11 +87,12 @@ export function useDocumentManagement({
       const title = docTitle || "Untitled Question Paper";
       const docPayload = {
         format: "question-bank",
-        version: 2,
+        version: 3,
         title,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         metadata: examMetadata,
+        questionRefs: extractQuestionRefs(editor),
         content: editor.getJSON(),
       };
       const savedName = await saveAsFileToDisk(

@@ -28,7 +28,7 @@ const question = {
   content: { html: "<p>What is the smallest unit of classification?</p>" },
   explanation: { html: "<p>Species is the smallest unit.</p>" },
   tags: ["biology"],
-} as never;
+};
 
 const options = [
   { id: "o1", label: "A", content: { html: "<p>Kingdom</p>" }, is_correct: false, sort_order: 0 },

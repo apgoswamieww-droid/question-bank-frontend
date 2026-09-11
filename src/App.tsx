@@ -21,6 +21,13 @@ import { ExamSettingsModal } from "./components/ExamSettingsModal";
 import { AppHeader } from "./components/AppHeader";
 import { DocumentToolbar } from "./components/DocumentToolbar";
 import { EditorToolbar } from "./components/EditorToolbar";
+import {
+  QuestionPickerPanel,
+  type PickerQuestion,
+} from "./components/QuestionPickerPanel";
+import { buildQuestionBlockFromBank } from "./utils/questionBlockTemplate";
+import { extractFamilyIds } from "./utils/questionRefs";
+import { api, type Language, type PaperInput, type QuestionVariant } from "./api/client";
 
 import { useToast } from "./hooks/useToast";
 import { useAutoSave } from "./hooks/useAutoSave";
@@ -53,6 +60,12 @@ function App() {
 
   const [isPrintPreviewOpen, setIsPrintPreviewOpen] = useState(false);
   const [isExamSettingsOpen, setIsExamSettingsOpen] = useState(false);
+  const [isQuestionPickerOpen, setIsQuestionPickerOpen] = useState(false);
+  const [paperLanguage, setPaperLanguage] = useState<Language | null>(null);
+  const [isSwitchingLanguage, setIsSwitchingLanguage] = useState(false);
+  const [missingTranslations, setMissingTranslations] = useState<string[]>([]);
+  const [cloudPaperId, setCloudPaperId] = useState<string | null>(null);
+  const [cloudSaving, setCloudSaving] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -283,6 +296,124 @@ function App() {
     [editor, mathUpdateCallback]
   );
 
+  const handleInsertFromBank = useCallback(
+    (questions: PickerQuestion[]) => {
+      if (!editor) return;
+      const nodes = [];
+      for (const q of questions) {
+        nodes.push(
+          buildQuestionBlockFromBank({
+            id: q.question_id,
+            family_id: q.family_id,
+            content: q.question.content,
+            marks: q.question.marks,
+            options: q.variants?.[0]?.options ?? [],
+          })
+        );
+        nodes.push({ type: "paragraph" });
+      }
+      editor.chain().focus().insertContent(nodes).run();
+      markDirty();
+    },
+    [editor, markDirty]
+  );
+
+  const handleSwitchLanguage = useCallback(
+    async (lang: Language) => {
+      if (!editor) return;
+      setIsSwitchingLanguage(true);
+      try {
+        const blocks: { pos: number; nodeSize: number; questionId: string }[] = [];
+        editor.state.doc.descendants((node, pos) => {
+          if (node.type.name === "questionBlock" && node.attrs.question_id) {
+            blocks.push({
+              pos,
+              nodeSize: node.nodeSize,
+              questionId: node.attrs.question_id as string,
+            });
+          }
+          return true;
+        });
+
+        const uniqueIds = [...new Set(blocks.map((b) => b.questionId))];
+        const variantMap = new Map<string, { family_id: string | null; variants: QuestionVariant[] }>();
+        for (const id of uniqueIds) {
+          try {
+            variantMap.set(id, await api.questions.variants(id));
+          } catch {
+            variantMap.set(id, { family_id: null, variants: [] });
+          }
+        }
+
+        const missing: string[] = [];
+        for (let i = blocks.length - 1; i >= 0; i--) {
+          const { pos, nodeSize, questionId } = blocks[i];
+          const data = variantMap.get(questionId);
+          const target = data?.variants?.find((v) => v.language_id === lang.id);
+          if (!target) {
+            missing.push(questionId);
+            continue;
+          }
+          const newBlock = buildQuestionBlockFromBank({
+            id: target.id,
+            family_id: target.family_id ?? data?.family_id ?? null,
+            content: target.content,
+            marks: target.marks,
+            options: target.options,
+          });
+          editor.chain().focus().command(({ tr }) => {
+            tr.replaceWith(pos, pos + nodeSize, editor.schema.nodeFromJSON(newBlock));
+            return true;
+          }).run();
+        }
+
+        setPaperLanguage(lang);
+        setMissingTranslations(missing);
+        if (missing.length > 0) {
+          showToast(
+            `Switched to ${lang.name}: ${missing.length} question(s) not available in this language yet.`
+          );
+        }
+        markDirty();
+      } catch {
+        showToast("Failed to switch paper language.");
+      } finally {
+        setIsSwitchingLanguage(false);
+      }
+    },
+    [editor, markDirty, showToast]
+  );
+
+  const handleSaveToCloud = useCallback(async () => {
+    if (!editor) return;
+    const familyIds = extractFamilyIds(editor);
+    if (familyIds.length === 0) {
+      showToast("Insert questions from the Question Bank before saving to cloud.");
+      return;
+    }
+    setCloudSaving(true);
+    try {
+      const input: PaperInput = {
+        title: docTitle || "Untitled Question Paper",
+        familyIds,
+        status: "published",
+      };
+      if (cloudPaperId) {
+        const updated = await api.papers.update(cloudPaperId, input);
+        setCloudPaperId(updated.id);
+        showToast("Paper updated in cloud.");
+      } else {
+        const created = await api.papers.create(input);
+        setCloudPaperId(created.id);
+        showToast(`Paper saved to cloud (id ${created.id.slice(0, 8)}…).`);
+      }
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Failed to save to cloud.");
+    } finally {
+      setCloudSaving(false);
+    }
+  }, [editor, docTitle, cloudPaperId, showToast]);
+
   if (!editor) {
     return null;
   }
@@ -315,6 +446,13 @@ function App() {
           onSaveAs={handleSaveAs}
           onExamSettings={() => setIsExamSettingsOpen(true)}
           onPrintPreview={() => setIsPrintPreviewOpen(true)}
+          onQuestionBank={() => setIsQuestionPickerOpen(true)}
+          onSaveToCloud={handleSaveToCloud}
+          cloudSaving={cloudSaving}
+          language={paperLanguage}
+          languageSwitching={isSwitchingLanguage}
+          missingLanguageCount={missingTranslations.length}
+          onSwitchLanguage={handleSwitchLanguage}
           recentFiles={recentFiles}
           isRecentOpen={isRecentOpen}
           setIsRecentOpen={setIsRecentOpen}
@@ -351,6 +489,12 @@ function App() {
           onSave={handleSaveExamMetadata}
         />
       )}
+
+      <QuestionPickerPanel
+        isOpen={isQuestionPickerOpen}
+        onClose={() => setIsQuestionPickerOpen(false)}
+        onInsert={handleInsertFromBank}
+      />
 
       <PrintPreviewModal
         isOpen={isPrintPreviewOpen}

@@ -28,7 +28,7 @@ import { useMathModal } from "../../hooks/useMathModal";
 import { useFontMarks } from "../../hooks/useFontMarks";
 import { MathEditorModal } from "../../MathEditorModal";
 import { readMathFromClipboard, hasMathMLOnClipboard } from "../../utils/mathPaste";
-import { convertClipboardData, isKrutiDev } from "../../utils/krutidevConverter";
+import { convertClipboardData } from "../../utils/krutidevConverter";
 import { KrutiDevButton } from "./KrutiDevButton";
 
 const fontSizes = [12, 14, 16, 18, 20, 24, 28, 32, 36];

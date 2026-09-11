@@ -155,6 +155,31 @@ export const QuestionBlock = Node.create({
   defining: true,
   isolating: true,
 
+  addAttributes() {
+    return {
+      family_id: {
+        default: null,
+        parseHTML: (element) => element.getAttribute("data-family-id"),
+        renderHTML: (attributes) =>
+          attributes.family_id ? { "data-family-id": attributes.family_id } : {},
+      },
+      question_id: {
+        default: null,
+        parseHTML: (element) => element.getAttribute("data-question-id"),
+        renderHTML: (attributes) =>
+          attributes.question_id ? { "data-question-id": attributes.question_id } : {},
+      },
+      source: {
+        default: "manual",
+        parseHTML: (element) => element.getAttribute("data-source") || "manual",
+        renderHTML: (attributes) =>
+          attributes.source && attributes.source !== "manual"
+            ? { "data-source": attributes.source }
+            : {},
+      },
+    };
+  },
+
   parseHTML() {
     return [
       { tag: 'div[data-type="question-block"]' },
