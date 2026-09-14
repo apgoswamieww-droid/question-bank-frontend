@@ -400,12 +400,12 @@ function App() {
       };
       if (cloudPaperId) {
         const updated = await api.papers.update(cloudPaperId, input);
-        setCloudPaperId(updated.id);
+        setCloudPaperId(updated.paper.id);
         showToast("Paper updated in cloud.");
       } else {
         const created = await api.papers.create(input);
-        setCloudPaperId(created.id);
-        showToast(`Paper saved to cloud (id ${created.id.slice(0, 8)}…).`);
+        setCloudPaperId(created.paper.id);
+        showToast(`Paper saved to cloud (id ${created.paper.id.slice(0, 8)}…).`);
       }
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Failed to save to cloud.");

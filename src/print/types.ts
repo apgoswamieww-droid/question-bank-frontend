@@ -1,7 +1,7 @@
 import type { ExamMetadata } from "../types/examMetadata";
 
 export interface PrintSettings {
-  paperSize: "A4";
+  paperSize: "A4" | "A3" | "Letter";
   orientation: "portrait" | "landscape";
   marginTop: number; // in mm
   marginRight: number; // in mm

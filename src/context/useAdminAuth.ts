@@ -16,6 +16,16 @@ export const PERMISSIONS = {
   ROLES_MANAGE: "roles.manage",
   QUESTION_BANKS_VIEW: "question_banks.view",
   QUESTION_BANKS_MANAGE: "question_banks.manage",
+  // Paper Generator (Phase 17) — mirrors backend supabase.js PERMISSIONS.
+  PAPERS_VIEW: "papers.view",
+  PAPERS_MANAGE: "papers.manage",
+  PAPERS_DELETE: "papers.delete",
+  PAPERS_PUBLISH: "papers.publish",
+  PAPERS_GENERATE: "papers.generate",
+  PAPERS_EXPORT: "papers.export",
+  PAPERS_TEMPLATES_MANAGE: "papers.templates.manage",
+  PAPERS_TRANSLATIONS_MANAGE: "papers.translations.manage",
+  PAPERS_REPORTS_VIEW: "papers.reports.view",
   SETTINGS_VIEW: "settings.view",
 } as const;
 

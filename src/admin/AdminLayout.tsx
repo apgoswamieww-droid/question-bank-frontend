@@ -7,6 +7,7 @@ import {
   ChevronDown,
   ChevronRight,
   ClipboardList,
+  FilePlus2,
   FileText,
   GraduationCap,
   Globe,
@@ -23,6 +24,7 @@ import {
   UserRound,
   PenLine,
   X,
+  LayoutTemplate,
   type LucideIcon,
 } from "lucide-react";
 import { Toaster } from "sonner";
@@ -67,6 +69,13 @@ const navSections: NavSection[] = [
       { label: "Tests", icon: ClipboardList, to: "/admin/tests", perm: PERMISSIONS.QUESTION_BANKS_MANAGE },
       { label: "Question Banks", icon: Library, to: "/admin/question-banks", perm: PERMISSIONS.QUESTION_BANKS_VIEW },
       { label: "Analytics", icon: BarChart3, to: "/admin/analytics", perm: PERMISSIONS.QUESTION_BANKS_VIEW },
+    ],
+  },
+  {
+    title: "Paper Generator",
+    items: [
+      { label: "Papers", icon: FilePlus2, to: "/admin/papers", perm: PERMISSIONS.PAPERS_VIEW },
+      { label: "Templates", icon: LayoutTemplate, to: "/admin/templates", perm: PERMISSIONS.PAPERS_TEMPLATES_MANAGE },
     ],
   },
   {
