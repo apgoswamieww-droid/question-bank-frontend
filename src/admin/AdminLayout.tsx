@@ -18,6 +18,7 @@ import {
   LogOut,
   Menu,
   BookMarked,
+  BookOpenCheck,
   Settings,
   ShieldCheck,
   User,
@@ -65,8 +66,6 @@ const navSections: NavSection[] = [
   {
     title: "Content",
     items: [
-      { label: "Question Entry", icon: PenLine, to: "/admin/question-entry", perm: PERMISSIONS.QUESTION_BANKS_MANAGE },
-      { label: "Tests", icon: ClipboardList, to: "/admin/tests", perm: PERMISSIONS.QUESTION_BANKS_MANAGE },
       { label: "Question Banks", icon: Library, to: "/admin/question-banks", perm: PERMISSIONS.QUESTION_BANKS_VIEW },
       { label: "Analytics", icon: BarChart3, to: "/admin/analytics", perm: PERMISSIONS.QUESTION_BANKS_VIEW },
     ],
@@ -83,6 +82,7 @@ const navSections: NavSection[] = [
     items: [
       { label: "Standards", icon: Hash, to: "/admin/standards", perm: PERMISSIONS.USERS_MANAGE },
       { label: "Subjects", icon: FileText, to: "/admin/subjects", perm: PERMISSIONS.USERS_MANAGE },
+      { label: "Resource Types", icon: BookOpenCheck, to: "/admin/resource-types", perm: PERMISSIONS.USERS_MANAGE },
       { label: "Chapters", icon: BookMarked, to: "/admin/chapters", perm: PERMISSIONS.USERS_MANAGE },
       { label: "Topics", icon: Layers, to: "/admin/topics", perm: PERMISSIONS.USERS_MANAGE },
     ],

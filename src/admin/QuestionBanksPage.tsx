@@ -12,6 +12,7 @@ import {
   Library,
   Loader2,
   Pencil,
+  Plus,
   Save,
   Search,
   SlidersHorizontal,
@@ -28,6 +29,7 @@ import {
   type QuestionAggregateCounts,
   type QuestionFilters,
   type QuestionLevel,
+  type ResourceType,
   type Standard,
   type Subject,
   type Topic,
@@ -38,6 +40,7 @@ import { richTextToPlain } from "./components/richText";
 import { storedHtml } from "./components/storedRichHelper";
 import { StoredRichText } from "./components/StoredRichText";
 import { QuestionViewModal } from "./components/QuestionViewModal";
+import QuestionEntryForm from "./QuestionEntryForm";
 import { useCan, PERMISSIONS } from "../context/useAdminAuth";
 
 const TYPE_LABELS: Record<string, string> = {
@@ -152,6 +155,8 @@ export default function QuestionBanksPage() {
   const [examTypes, setExamTypes] = useState<ExamType[]>([]);
   const [languages, setLanguages] = useState<Language[]>([]);
   const [levels, setLevels] = useState<QuestionLevel[]>([]);
+  const [resourceTypes, setResourceTypes] = useState<ResourceType[]>([]);
+  const [mappedSubjectIds, setMappedSubjectIds] = useState<Set<string> | null>(null);
   // ---- filter state (draft vs applied) ----
   const [draft, setDraft] = useState<QuestionFilters>(EMPTY_FILTERS);
   const [applied, setApplied] = useState<QuestionFilters>(EMPTY_FILTERS);
@@ -179,6 +184,9 @@ export default function QuestionBanksPage() {
 
   // ---- ui ----
   const [filtersOpen, setFiltersOpen] = useState(true);
+  // ---- entry mode ----
+  const [entryOpen, setEntryOpen] = useState(false);
+  const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
 
   // ------------------------------------------------------------------
   // Master data loading
@@ -190,16 +198,36 @@ export default function QuestionBanksPage() {
       api.examTypes.list(),
       api.languages.list(),
       api.questionLevels.list(),
+      api.resourceTypes.list(),
     ])
-      .then(([s, sub, et, lang, lvl]) => {
+      .then(([s, sub, et, lang, lvl, rt]) => {
         setStandards(s.standards);
         setSubjects(sub.subjects);
         setExamTypes(et.examTypes);
         setLanguages(lang.languages);
         setLevels(lvl.levels);
+        setResourceTypes(rt.resourceTypes);
       })
       .catch((err) => toast.error(err instanceof ApiError ? err.message : "Failed to load filter options."));
   }, []);
+
+  // ---- Load mapped subjects when standard changes ----
+  useEffect(() => {
+    let cancelled = false;
+    if (!draft.standard_id) {
+      setMappedSubjectIds(null);
+      return;
+    }
+    api.standardSubjects
+      .list({ standard_id: draft.standard_id })
+      .then((res) => {
+        if (cancelled) return;
+        const ids = res.mappings.map((m) => m.subject_id);
+        setMappedSubjectIds(ids.length ? new Set(ids) : null);
+      })
+      .catch(() => { if (!cancelled) setMappedSubjectIds(null); });
+    return () => { cancelled = true; };
+  }, [draft.standard_id]);
 
   // Cascading chapters / topics
   useEffect(() => {
@@ -209,10 +237,14 @@ export default function QuestionBanksPage() {
       return;
     }
     api.chapters
-      .list({ standard_id: draft.standard_id, subject_id: draft.subject_id })
+      .list({
+        standard_id: draft.standard_id,
+        subject_id: draft.subject_id,
+        resource_type_ids: draft.resource_type_id ? [draft.resource_type_id] : undefined,
+      })
       .then((res) => setChapters(res.chapters))
       .catch(() => setChapters([]));
-  }, [draft.standard_id, draft.subject_id]);
+  }, [draft.standard_id, draft.subject_id, draft.resource_type_id]);
 
   useEffect(() => {
     if (!draft.chapter_id) {
@@ -267,12 +299,18 @@ export default function QuestionBanksPage() {
     return arr.find((a) => a.id === id)?.count;
   };
 
+  const filteredSubjects = !draft.standard_id
+    ? []
+    : !mappedSubjectIds
+      ? subjects
+      : subjects.filter((s) => mappedSubjectIds.has(s.id));
+
   const standardOptions = standards.map((s) => ({
     id: s.id,
     label: s.name,
     count: countOf(aggregate.by_standard, s.id),
   }));
-  const subjectOptions = subjects.map((s) => ({
+  const subjectOptions = filteredSubjects.map((s) => ({
     id: s.id,
     label: s.name,
     count: countOf(aggregate.by_subject, s.id),
@@ -390,7 +428,17 @@ export default function QuestionBanksPage() {
         </div>
 
         {/* Presets */}
-        <div className="relative">
+        <div className="flex items-center gap-2">
+          {can(PERMISSIONS.QUESTION_BANKS_MANAGE) && (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => { setEditingQuestionId(null); setEntryOpen(true); }}
+            >
+              <Plus className="h-4 w-4" aria-hidden /> Add Questions
+            </Button>
+          )}
+          <div className="relative">
           <Button variant="secondary" size="sm" onClick={() => setPresetOpen((o) => !o)}>
             <Save className="h-4 w-4" aria-hidden /> Saved Searches
             {presets.length > 0 && (
@@ -451,9 +499,24 @@ export default function QuestionBanksPage() {
             </div>
           )}
         </div>
+        </div>
       </div>
 
-      {/* Filters */}
+      {entryOpen ? (
+        <QuestionEntryForm
+          standards={standards}
+          subjects={subjects}
+          chapters={chapters}
+          topics={topics}
+          resourceTypes={resourceTypes}
+          examTypes={examTypes}
+          languages={languages}
+          editingQuestionId={editingQuestionId}
+          onClose={() => setEntryOpen(false)}
+          onSaved={() => { setEntryOpen(false); refreshResults(); }}
+        />
+      ) : (
+      <>
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <button
           type="button"
@@ -492,12 +555,12 @@ export default function QuestionBanksPage() {
             </div>
 
             {/* Hierarchy */}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
               <FilterField label="Standard">
                 <SelectWithCount
                   value={draft.standard_id ?? ""}
                   onChange={(v) =>
-                    setDraft((d) => ({ ...d, standard_id: v, subject_id: "", chapter_id: "", topic_id: "" }))
+                    setDraft((d) => ({ ...d, standard_id: v, subject_id: "", resource_type_id: "", chapter_id: "", topic_id: "" }))
                   }
                   options={standardOptions}
                   placeholder="All standards"
@@ -507,10 +570,20 @@ export default function QuestionBanksPage() {
                 <SelectWithCount
                   value={draft.subject_id ?? ""}
                   onChange={(v) =>
-                    setDraft((d) => ({ ...d, subject_id: v, chapter_id: "", topic_id: "" }))
+                    setDraft((d) => ({ ...d, subject_id: v, resource_type_id: "", chapter_id: "", topic_id: "" }))
                   }
                   options={subjectOptions}
-                  placeholder="All subjects"
+                  placeholder={draft.standard_id ? (mappedSubjectIds === null ? "Loading..." : "All subjects") : "Select standard first"}
+                />
+              </FilterField>
+              <FilterField label="Resource Type">
+                <SelectWithCount
+                  value={draft.resource_type_id ?? ""}
+                  onChange={(v) =>
+                    setDraft((d) => ({ ...d, resource_type_id: v, chapter_id: "", topic_id: "" }))
+                  }
+                  options={resourceTypes.map((rt) => ({ id: rt.id, label: rt.name }))}
+                  placeholder="All types"
                 />
               </FilterField>
               <FilterField label="Chapter">
@@ -662,7 +735,6 @@ export default function QuestionBanksPage() {
         )}
       </section>
 
-      {/* Results */}
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
           <h2 className="inline-flex items-center gap-2 text-sm font-semibold text-slate-900">
@@ -692,8 +764,8 @@ export default function QuestionBanksPage() {
               }
               action={
                 can(PERMISSIONS.QUESTION_BANKS_MANAGE) ? (
-                  <Button size="sm" onClick={() => navigate("/admin/question-entry")}>
-                    Open Question Entry
+                  <Button size="sm" onClick={() => { setEditingQuestionId(null); setEntryOpen(true); }}>
+                    Add Questions
                   </Button>
                 ) : undefined
               }
@@ -765,7 +837,7 @@ export default function QuestionBanksPage() {
                             <>
                               <button
                                 type="button"
-                                onClick={() => navigate(`/admin/question-entry?id=${q.id}`)}
+                                onClick={() => { setEditingQuestionId(q.id); setEntryOpen(true); }}
                                 className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 text-slate-500 transition hover:border-primary hover:text-primary"
                                 title="Edit question"
                               >
@@ -828,6 +900,8 @@ export default function QuestionBanksPage() {
           </div>
         )}
       </section>
+      </>
+      )}
 
       <QuestionViewModal
         questionId={viewQuestionId}

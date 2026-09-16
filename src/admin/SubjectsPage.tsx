@@ -1,25 +1,32 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Pencil, Plus, Trash2, BookOpen } from "lucide-react";
+import { Pencil, Plus, Trash2, BookOpen, X } from "lucide-react";
 import { api, ApiError, type Standard, type Subject } from "../api/client";
 import { PageHeader } from "./components/PageHeader";
 import { Button } from "./components/Button";
 import { DataTable, type DataTableColumn } from "./components/DataTable";
-import { MasterDataModal, type MasterField } from "./components/MasterDataModal";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { TableSkeleton } from "./components/Skeleton";
+import { IconPicker } from "./components/IconPicker";
 
 export default function SubjectsPage() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [standards, setStandards] = useState<Standard[]>([]);
   const [loading, setLoading] = useState(true);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState<Subject | null>(null);
   const [deleting, setDeleting] = useState<Subject | null>(null);
   const [filterStandard, setFilterStandard] = useState("");
-
-  // subject_id -> standard ids the subject is mapped to (standard_subjects)
   const [subjectStandards, setSubjectStandards] = useState<Map<string, string[]>>(new Map());
+
+  // Inline form state
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<Subject | null>(null);
+  const [name, setName] = useState("");
+  const [icon, setIcon] = useState<string | null>(null);
+  const [color, setColor] = useState("");
+  const [sortOrder, setSortOrder] = useState("");
+  const [standardIds, setStandardIds] = useState<string[]>([]);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -47,22 +54,60 @@ export default function SubjectsPage() {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load(); }, [load]);
 
-  const handleSubmit = async (data: Record<string, unknown>) => {
-    const standardIds = (data.standard_ids as string[] | undefined) ?? [];
-    const payload = { ...data };
-    delete payload.standard_ids;
-    if (editing) {
-      await api.subjects.update(editing.id, {
-        ...(payload as Partial<Subject>),
+  const openCreateForm = () => {
+    setEditing(null);
+    setName("");
+    setIcon(null);
+    setColor("");
+    setSortOrder("");
+    setStandardIds(filterStandard ? [filterStandard] : []);
+    setFormError(null);
+    setFormOpen(true);
+  };
+
+  const openEditForm = (s: Subject) => {
+    setEditing(s);
+    setName(s.name);
+    setIcon(s.icon ?? null);
+    setColor(s.color ?? "");
+    setSortOrder(String(s.sort_order));
+    setStandardIds(subjectStandards.get(s.id) ?? []);
+    setFormError(null);
+    setFormOpen(true);
+  };
+
+  const closeForm = () => {
+    setFormOpen(false);
+    setEditing(null);
+    setFormError(null);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) { setFormError("Name is required."); return; }
+    setSaving(true);
+    setFormError(null);
+    try {
+      const payload = {
+        name: name.trim(),
+        icon: icon || undefined,
+        color: color || undefined,
+        sort_order: Number(sortOrder) || 0,
         standard_ids: standardIds,
-      });
-    } else {
-      await api.subjects.create({
-        ...(payload as { name: string; icon?: string; color?: string; sort_order?: number }),
-        standard_ids: standardIds,
-      });
+      };
+      if (editing) {
+        await api.subjects.update(editing.id, payload);
+      } else {
+        await api.subjects.create(payload);
+      }
+      closeForm();
+      await load();
+      toast.success(editing ? "Subject updated." : "Subject created.");
+    } catch (err) {
+      setFormError(err instanceof ApiError ? err.message : "Something went wrong.");
+    } finally {
+      setSaving(false);
     }
-    await load();
   };
 
   const handleDelete = async () => {
@@ -77,29 +122,14 @@ export default function SubjectsPage() {
     }
   };
 
+  const toggleStandard = (id: string) => {
+    setStandardIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+  };
+
   const filteredSubjects =
     !filterStandard
       ? subjects
       : subjects.filter((s) => subjectStandards.get(s.id)?.includes(filterStandard));
-
-  const getStandardOptions = () =>
-    standards.map((st) => ({ value: st.id, label: st.name }));
-
-  const getFields = (): MasterField[] => [
-    { key: "name", label: "Subject Name", placeholder: "e.g. Mathematics", required: true, colSpan: 2 },
-    { key: "icon", label: "Icon (emoji)", placeholder: "📐", colSpan: 1 },
-    { key: "color", label: "Color", type: "color", colSpan: 1 },
-    { key: "sort_order", label: "Sort Order", type: "number", placeholder: "0" },
-    {
-      key: "standard_ids",
-      label: "Standards",
-      type: "multiselect",
-      options: getStandardOptions(),
-      colSpan: 2,
-      // When creating while a standard is selected in the filter, pre-check it.
-      defaultValue: filterStandard ? [filterStandard] : [],
-    },
-  ];
 
   const columns: DataTableColumn<Subject>[] = [
     {
@@ -136,17 +166,12 @@ export default function SubjectsPage() {
         const chips = ids
           .map((id) => standards.find((st) => st.id === id))
           .filter(Boolean) as Standard[];
-        if (!chips.length) {
-          return <span className="text-sm text-slate-400">—</span>;
-        }
+        if (!chips.length) return <span className="text-sm text-slate-400">—</span>;
         const shown = chips.slice(0, 3);
         return (
           <div className="flex flex-wrap items-center gap-1">
             {shown.map((st) => (
-              <span
-                key={st.id}
-                className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 ring-1 ring-slate-200"
-              >
+              <span key={st.id} className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 ring-1 ring-slate-200">
                 {st.name}
               </span>
             ))}
@@ -154,7 +179,7 @@ export default function SubjectsPage() {
               <span className="text-xs text-slate-400">+{chips.length - shown.length}</span>
             )}
           </div>
-);
+        );
       },
     },
     {
@@ -185,7 +210,7 @@ export default function SubjectsPage() {
         <div className="flex justify-end gap-0.5">
           <button
             type="button"
-            onClick={() => { setEditing(s); setModalOpen(true); }}
+            onClick={() => openEditForm(s)}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-primary"
             title="Edit"
           >
@@ -210,11 +235,102 @@ export default function SubjectsPage() {
         title="Subjects"
         subtitle="Manage academic subjects"
         actions={
-          <Button onClick={() => { setEditing(null); setModalOpen(true); }}>
+          <Button onClick={openCreateForm}>
             <Plus className="h-4 w-4" aria-hidden /> Add Subject
           </Button>
         }
       />
+
+      {formOpen && (
+        <form onSubmit={handleSubmit} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-slate-900">{editing ? "Edit Subject" : "Add Subject"}</h3>
+            <button type="button" onClick={closeForm} className="rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          {formError && (
+            <div className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{formError}</div>
+          )}
+          <div className="grid grid-cols-2 gap-4">
+            {/* Name */}
+            <div className="col-span-2">
+              <label htmlFor="sub-name" className="mb-1 block text-xs font-medium text-slate-600">Subject Name *</label>
+              <input
+                id="sub-name"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Mathematics"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+            {/* Icon */}
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-600">Icon</label>
+              <IconPicker value={icon} onChange={setIcon} />
+            </div>
+            {/* Color */}
+            <div>
+              <label htmlFor="sub-color" className="mb-1 block text-xs font-medium text-slate-600">Color</label>
+              <div className="flex items-center gap-2">
+                <input
+                  id="sub-color"
+                  type="color"
+                  className="h-10 w-10 cursor-pointer rounded-lg border border-slate-300"
+                  value={color || "#3B82F6"}
+                  onChange={(e) => setColor(e.target.value)}
+                />
+                <input
+                  type="text"
+                  value={color}
+                  onChange={(e) => setColor(e.target.value)}
+                  placeholder="#3B82F6"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+            </div>
+            {/* Sort Order */}
+            <div>
+              <label htmlFor="sub-order" className="mb-1 block text-xs font-medium text-slate-600">Sort Order</label>
+              <input
+                id="sub-order"
+                type="number"
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value)}
+                placeholder="0"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+            {/* Standards multiselect */}
+            <div className="col-span-2">
+              <label className="mb-1 block text-xs font-medium text-slate-600">Standards</label>
+              <div className="max-h-36 overflow-y-auto rounded-lg border border-slate-300 p-2">
+                {standards.length === 0 && (
+                  <p className="px-1 py-1 text-xs text-slate-400">No standards available</p>
+                )}
+                {standards.map((st) => (
+                  <label key={st.id} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-[var(--color-primary,theme(colors.blue.600))]"
+                      checked={standardIds.includes(st.id)}
+                      onChange={() => toggleStandard(st.id)}
+                    />
+                    <span className="truncate">{st.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="mt-4 flex gap-2">
+            <Button type="submit" disabled={saving}>
+              {saving ? "Saving…" : editing ? "Save Changes" : "Create"}
+            </Button>
+            <Button type="button" variant="ghost" onClick={closeForm}>Cancel</Button>
+          </div>
+        </form>
+      )}
 
       {loading ? (
         <TableSkeleton rows={5} cols={3} />
@@ -239,30 +355,13 @@ export default function SubjectsPage() {
           emptyTitle="No subjects"
           emptyDescription="Add a subject to get started."
           emptyAction={
-            <Button onClick={() => { setEditing(null); setModalOpen(true); }}>
+            <Button onClick={openCreateForm}>
               <Plus className="h-4 w-4" aria-hidden /> Add Subject
             </Button>
           }
           initialSortedColumn="sort_order"
         />
       )}
-
-      <MasterDataModal
-        open={modalOpen}
-        title={editing ? "Edit Subject" : "Add Subject"}
-        fields={getFields()}
-        initial={
-          editing
-            ? {
-                ...editing,
-                // Prefill the multiselect with the subject's mapped standards.
-                standard_ids: subjectStandards.get(editing.id) ?? [],
-              }
-            : null
-        }
-        onClose={() => { setModalOpen(false); setEditing(null); }}
-        onSubmit={handleSubmit}
-      />
 
       <ConfirmDialog
         open={Boolean(deleting)}

@@ -72,15 +72,15 @@ function AnswerPanel({ question, options, payload }: Detail) {
         {options.map((o) => (
           <div
             key={o.id}
-            className={`flex items-start justify-between gap-2 rounded-lg border px-3 py-2 text-sm ${
+            className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm ${
               o.is_correct
                 ? "border-emerald-200 bg-emerald-50 text-emerald-800"
                 : "border-slate-200 bg-slate-50 text-slate-700"
             }`}
           >
-            <span className="min-w-0 flex-1">
-              <span className="mr-1.5 font-semibold">{o.label}</span>
-              <StoredRichText value={o.content} />
+            <span className="flex min-w-0 flex-1 items-baseline gap-1.5">
+              <span className="shrink-0 font-semibold">{o.label}</span>
+              <span className="min-w-0 flex-1 option-inline"><StoredRichText value={o.content} /></span>
             </span>
             {o.is_correct && (
               <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-emerald-600">
@@ -283,7 +283,7 @@ export function QuestionViewModal({ questionId, open, onClose }: QuestionViewMod
               </Section>
 
               {/* Tags */}
-              {data.question.tags.length > 0 && (
+              {(data.question.tags?.length ?? 0) > 0 && (
                 <Section icon={<span className="text-xs">#</span>} title="Tags">
                   <div className="flex flex-wrap gap-1.5">
                     {data.question.tags.map((t) => (

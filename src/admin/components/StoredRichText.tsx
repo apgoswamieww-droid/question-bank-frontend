@@ -11,5 +11,10 @@ interface StoredRichTextProps {
 export function StoredRichText({ value, className }: StoredRichTextProps) {
   const html = useMemo(() => renderStoredHtml(value), [value]);
   if (!html) return null;
-  return <span className={className} dangerouslySetInnerHTML={{ __html: html }} />;
+  return (
+    <span
+      className={`qb-content-font${className ? ` ${className}` : ""}`}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
 }

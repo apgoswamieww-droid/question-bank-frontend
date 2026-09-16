@@ -3,10 +3,14 @@
 @import "katex/dist/katex.min.css";
 
 @theme {
-  --font-sans: "Rasa", "Noto Serif Gujarati", "Google Sans", "Inter",
+  --font-sans: "Nunito", "Rasa", "Noto Serif Gujarati", "Inter",
     ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, "Noto Sans", Liberation Sans, sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji";
+
+  /* Content serif stack (questions, paper bodies): Latin via Rasa,
+     Gujarati via Noto Serif Gujarati. */
+  --font-content: "Rasa", "Noto Serif Gujarati", "Times New Roman", Times, serif;
 
   --color-primary: #f06d02;
   --color-primary-50: #fff7ed;
@@ -48,10 +52,45 @@
   box-sizing: border-box;
 }
 
+/* Google Fonts utility classes */
+.nunito {
+  font-family: "Nunito", "Rasa", "Noto Serif Gujarati", ui-sans-serif, system-ui,
+    -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-optical-sizing: auto;
+  font-style: normal;
+}
+
+.rasa {
+  font-family: "Rasa", "Noto Serif Gujarati", "Times New Roman", Times, serif;
+  font-optical-sizing: auto;
+  font-style: normal;
+}
+
+.noto-serif-gujarati {
+  font-family: "Noto Serif Gujarati", "Rasa", "Times New Roman", Times, serif;
+  font-optical-sizing: auto;
+  font-style: normal;
+}
+
+/* Stored question content (admin views): Latin via Rasa, Gujarati via
+   Noto Serif Gujarati. Nunito UI font applies everywhere else. */
+.qb-content-font {
+  font-family: "Rasa", "Noto Serif Gujarati", "Times New Roman", Times, serif;
+  font-optical-sizing: auto;
+}
+
+/* Option content in view modals: force inline display so the label and value sit on one line. */
+.option-inline p {
+  display: inline;
+  margin: 0;
+}
+
 body {
   margin: 0;
   background: #f5f6f8;
-  font-family: "Rasa", "Noto Serif Gujarati", "Times New Roman", Times, serif;
+  font-family: "Nunito", "Rasa", "Noto Serif Gujarati", "Inter",
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
 }
 
 .app-header {
@@ -230,7 +269,7 @@ body {
   outline: none;
   font-size: 16px;
   line-height: 1.7;
-  font-family: "Rasa", "Noto Serif Gujarati", "Times New Roman", Times, serif;
+  font-family: var(--font-content);
   counter-reset: questionCounter;
 }
 

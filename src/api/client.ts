@@ -284,8 +284,18 @@ export interface Chapter {
   id: string;
   subject_id: string;
   standard_id: string;
+  resource_type_ids: string[];
   name: string;
   number: number | null;
+  description: string | null;
+  sort_order: number;
+  active: boolean;
+}
+
+export interface ResourceType {
+  id: string;
+  name: string;
+  code: string | null;
   description: string | null;
   sort_order: number;
   active: boolean;
@@ -391,6 +401,7 @@ export interface QuestionFilters {
   bank_id?: string;
   standard_id?: string;
   subject_id?: string;
+  resource_type_id?: string;
   chapter_id?: string;
   topic_id?: string;
   type?: string;
@@ -1523,14 +1534,15 @@ export const api = {
     },
   },
   chapters: {
-    list(params?: { subject_id?: string; standard_id?: string }): Promise<{ chapters: Chapter[] }> {
+    list(params?: { subject_id?: string; standard_id?: string; resource_type_ids?: string[] }): Promise<{ chapters: Chapter[] }> {
       const qs = new URLSearchParams();
       if (params?.subject_id) qs.set("subject_id", params.subject_id);
       if (params?.standard_id) qs.set("standard_id", params.standard_id);
+      if (params?.resource_type_ids?.length) qs.set("resource_type_ids", params.resource_type_ids.join(","));
       const q = qs.toString();
       return request(`/admin/chapters${q ? `?${q}` : ""}`);
     },
-    create(data: { subject_id: string; standard_id: string; name: string; number?: number; description?: string; sort_order?: number }): Promise<{ chapter: Chapter }> {
+    create(data: { subject_id: string; standard_id: string; resource_type_ids?: string[]; name: string; number?: number; description?: string; sort_order?: number }): Promise<{ chapter: Chapter }> {
       return request("/admin/chapters", { method: "POST", body: data });
     },
     update(id: string, data: Partial<Chapter>): Promise<{ chapter: Chapter }> {
@@ -1569,6 +1581,25 @@ export const api = {
     },
     delete(id: string): Promise<{ deleted: boolean }> {
       return request(`/admin/exam-types/${id}`, { method: "DELETE" });
+    },
+  },
+  resourceTypes: {
+    list(): Promise<{ resourceTypes: ResourceType[] }> {
+      return request("/admin/resource-types");
+    },
+    create(data: { name: string; code?: string; description?: string; sort_order?: number }): Promise<{ resourceType: ResourceType }> {
+      return request("/admin/resource-types", { method: "POST", body: data });
+    },
+    update(id: string, data: Partial<ResourceType>): Promise<{ resourceType: ResourceType }> {
+      return request(`/admin/resource-types/${id}`, { method: "PATCH", body: data });
+    },
+    delete(id: string): Promise<{ deleted: boolean }> {
+      return request(`/admin/resource-types/${id}`, { method: "DELETE" });
+    },
+  },
+  tags: {
+    list(): Promise<{ tags: string[] }> {
+      return request("/admin/tags");
     },
   },
   languages: {

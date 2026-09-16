@@ -6,7 +6,6 @@ import AdminDashboardPage from "./AdminDashboardPage";
 import { UsersPage } from "./UsersPage";
 import { RolesPermissionsPage } from "./RolesPermissionsPage";
 import QuestionBanksPage from "./QuestionBanksPage";
-import QuestionEntryPage from "./QuestionEntryPage";
 import QuestionAnalyticsPage from "./QuestionAnalyticsPage";
 import TestsListPage from "./TestsListPage";
 import TestCreatePage from "./TestCreatePage";
@@ -14,6 +13,7 @@ import TeacherEditorPage from "./TeacherEditorPage";
 import StandardsPage from "./StandardsPage";
 import SubjectsPage from "./SubjectsPage";
 import ChaptersPage from "./ChaptersPage";
+import ResourceTypesPage from "./ResourceTypesPage";
 import TopicsPage from "./TopicsPage";
 import ExamTypesPage from "./ExamTypesPage";
 import LanguagesPage from "./LanguagesPage";
@@ -75,14 +75,6 @@ export default function AdminRoutes() {
             <Route path="students" element={<UsersPage role="student" />} />
 
             <Route path="question-banks" element={<QuestionBanksPage />} />
-            <Route
-              path="question-entry"
-              element={
-                <RequireSuperAdmin>
-                  <QuestionEntryPage />
-                </RequireSuperAdmin>
-              }
-            />
             <Route
               path="analytics"
               element={
@@ -231,6 +223,7 @@ export default function AdminRoutes() {
             <Route path="standards" element={<StandardsPage />} />
             <Route path="subjects" element={<SubjectsPage />} />
             <Route path="chapters" element={<ChaptersPage />} />
+            <Route path="resource-types" element={<ResourceTypesPage />} />
             <Route path="topics" element={<TopicsPage />} />
             <Route path="exam-types" element={<ExamTypesPage />} />
             <Route path="languages" element={<LanguagesPage />} />

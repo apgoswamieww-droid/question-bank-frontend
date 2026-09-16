@@ -11,6 +11,7 @@ import {
   type Topic,
   type ExamType,
   type Language,
+  type ResourceType,
   type Question,
   type QuestionOption,
 } from "../api/client";
@@ -108,12 +109,16 @@ export default function QuestionEntryPage() {
   const [topics, setTopics] = useState<Topic[]>([]);
   const [examTypes, setExamTypes] = useState<ExamType[]>([]);
   const [languages, setLanguages] = useState<Language[]>([]);
+  const [resourceTypes, setResourceTypes] = useState<ResourceType[]>([]);
   const [loadingMaster, setLoadingMaster] = useState(true);
   // Selection
   const [standardId, setStandardId] = useState("");
   const [subjectId, setSubjectId] = useState("");
+  const [resourceTypeId, setResourceTypeId] = useState("");
   const [chapterId, setChapterId] = useState("");
   const [topicId, setTopicId] = useState("");
+  // Subjects mapped to the selected standard
+  const [mappedSubjectIds, setMappedSubjectIds] = useState<Set<string> | null>(null);
 
   // Question list
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -139,16 +144,36 @@ export default function QuestionEntryPage() {
       api.subjects.list(),
       api.examTypes.list(),
       api.languages.list(),
+      api.resourceTypes.list(),
     ])
-      .then(([s, sub, et, lang]) => {
+      .then(([s, sub, et, lang, rt]) => {
         setStandards(s.standards);
         setSubjects(sub.subjects);
         setExamTypes(et.examTypes);
         setLanguages(lang.languages);
+        setResourceTypes(rt.resourceTypes);
       })
       .catch((err) => toast.error(err instanceof ApiError ? err.message : "Failed to load master data."))
       .finally(() => setLoadingMaster(false));
   }, []);
+
+  // ---- Load mapped subjects when standard changes ----
+  useEffect(() => {
+    let cancelled = false;
+    if (!standardId) {
+      setMappedSubjectIds(null);
+      return;
+    }
+    api.standardSubjects
+      .list({ standard_id: standardId })
+      .then((res) => {
+        if (cancelled) return;
+        const ids = res.mappings.map((m) => m.subject_id);
+        setMappedSubjectIds(ids.length ? new Set(ids) : null);
+      })
+      .catch(() => { if (!cancelled) setMappedSubjectIds(null); });
+    return () => { cancelled = true; };
+  }, [standardId]);
 
   // ---- Load chapters when standard + subject selected ----
   useEffect(() => {
@@ -161,10 +186,14 @@ export default function QuestionEntryPage() {
       return;
     }
     api.chapters
-      .list({ standard_id: standardId, subject_id: subjectId })
+      .list({
+        standard_id: standardId,
+        subject_id: subjectId,
+        resource_type_ids: resourceTypeId ? [resourceTypeId] : undefined,
+      })
       .then((res) => setChapters(res.chapters))
       .catch(() => setChapters([]));
-  }, [standardId, subjectId]);
+  }, [standardId, subjectId, resourceTypeId]);
 
   // ---- Load topics when chapter selected ----
   useEffect(() => {
@@ -403,12 +432,16 @@ export default function QuestionEntryPage() {
           subjects={subjects}
           chapters={chapters}
           topics={topics}
+          resourceTypes={resourceTypes}
           standardId={standardId}
           subjectId={subjectId}
+          resourceTypeId={resourceTypeId}
           chapterId={chapterId}
           topicId={topicId}
+          mappedSubjectIds={mappedSubjectIds}
           onStandard={setStandardId}
           onSubject={setSubjectId}
+          onResourceType={setResourceTypeId}
           onChapter={setChapterId}
           onTopic={setTopicId}
         />
@@ -759,12 +792,16 @@ function HierarchyBar({
   subjects,
   chapters,
   topics,
+  resourceTypes,
   standardId,
   subjectId,
+  resourceTypeId,
   chapterId,
   topicId,
+  mappedSubjectIds,
   onStandard,
   onSubject,
+  onResourceType,
   onChapter,
   onTopic,
 }: {
@@ -772,20 +809,28 @@ function HierarchyBar({
   subjects: Subject[];
   chapters: Chapter[];
   topics: Topic[];
+  resourceTypes: ResourceType[];
   standardId: string;
   subjectId: string;
+  resourceTypeId: string;
   chapterId: string;
   topicId: string;
+  mappedSubjectIds: Set<string> | null;
   onStandard: (id: string) => void;
   onSubject: (id: string) => void;
+  onResourceType: (id: string) => void;
   onChapter: (id: string) => void;
   onTopic: (id: string) => void;
 }) {
-  const item = (label: string, value: string, options: { id: string; name: string }[], onChange: (id: string) => void) => {
+  const filteredSubjects = !mappedSubjectIds
+    ? subjects
+    : subjects.filter((s) => mappedSubjectIds.has(s.id));
+
+  const item = (label: string, value: string, options: { id: string; name: string }[], onChange: (id: string) => void, disabled?: boolean) => {
     return (
       <div className="min-w-0 flex-1">
         <label className="mb-0.5 block text-[11px] font-semibold uppercase tracking-wide text-slate-400">{label}</label>
-        <select value={value} onChange={(e) => onChange(e.target.value)} className={selectCls}>
+        <select value={value} onChange={(e) => onChange(e.target.value)} className={selectCls} disabled={disabled}>
           <option value="">All</option>
           {options.map((o) => (
             <option key={o.id} value={o.id}>{o.name}</option>
@@ -799,11 +844,12 @@ function HierarchyBar({
       <div className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-800">
         <ListFilter className="h-4 w-4 text-primary" aria-hidden /> Hierarchy
       </div>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         {item("Standard", standardId, standards, onStandard)}
-        {item("Subject", subjectId, subjects, onSubject)}
-        {item("Chapter", chapterId, chapters, onChapter)}
-        {item("Topic", topicId, topics, onTopic)}
+        {item("Subject", subjectId, filteredSubjects, onSubject, !standardId)}
+        {item("Resource Type", resourceTypeId, resourceTypes, onResourceType, !standardId || !subjectId)}
+        {item("Chapter", chapterId, chapters, onChapter, !standardId || !subjectId)}
+        {item("Topic", topicId, topics, onTopic, !chapterId)}
       </div>
     </div>
   );
